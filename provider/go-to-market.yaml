@@ -1,0 +1,47 @@
+identity:
+  author: "aisa-team"
+  name: "go-to-market"
+  label:
+    en_US: "AIsa Go-to-Market"
+    zh_Hans: "AIsa Go-to-Market"
+    pt_BR: "AIsa Go-to-Market"
+    ja_JP: "AIsa Go-to-Market"
+  description:
+    en_US: "Premium GTM data sources through one AIsa API key — web research, SEO & traffic intelligence, social listening, B2B prospecting, and creator discovery."
+    zh_Hans: "一个 AIsa API 密钥即可使用高级 GTM 数据源——网络研究、SEO 与流量情报、社交聆听、B2B 客户开发与创作者发现。"
+    pt_BR: "Fontes de dados GTM premium com uma única chave de API AIsa — pesquisa na web, inteligência de SEO e tráfego, escuta social, prospecção B2B e descoberta de criadores."
+    ja_JP: "AIsa APIキー1つでプレミアムGTMデータソースを利用——ウェブリサーチ、SEO・トラフィック分析、ソーシャルリスニング、B2Bプロスペクティング、クリエイター発掘。"
+  icon: "icon.svg"
+
+credentials_for_provider:
+  aisa_api_key:
+    type: secret-input
+    required: true
+    label:
+      en_US: "AIsa API Key"
+      zh_Hans: "AIsa API 密钥"
+      pt_BR: "Chave de API AIsa"
+      ja_JP: "AIsa APIキー"
+    placeholder:
+      en_US: "Paste your AIsa API key"
+      zh_Hans: "粘贴你的 AIsa API 密钥"
+      pt_BR: "Cole sua chave de API AIsa"
+      ja_JP: "AIsa APIキーを貼り付けてください"
+    help:
+      en_US: "One key unlocks Similarweb, Semrush, Ahrefs, Apollo, Tavily and 10+ premium GTM data sources — included in the AIsa Go-to-Market plan ($39/mo with $50 API credit)."
+      zh_Hans: "一个密钥即可解锁 Similarweb、Semrush、Ahrefs、Apollo、Tavily 等 10+ 高级 GTM 数据源——包含在 AIsa Go-to-Market 套餐中（每月 $39，含 $50 API 额度）。"
+      pt_BR: "Uma chave desbloqueia Similarweb, Semrush, Ahrefs, Apollo, Tavily e mais de 10 fontes de dados GTM premium — incluída no plano AIsa Go-to-Market (US$ 39/mês com US$ 50 de crédito de API)."
+      ja_JP: "1つのキーでSimilarweb、Semrush、Ahrefs、Apollo、Tavilyなど10以上のプレミアムGTMデータソースを利用可能——AIsa Go-to-Marketプラン（月額$39、$50のAPIクレジット付き）に含まれます。"
+    url: "https://aisa.one/solutions/go-to-market"
+
+tools:
+  - tools/web_research.yaml
+  - tools/traffic_intel.yaml
+  - tools/keyword_seo.yaml
+  - tools/social_listening.yaml
+  - tools/find_prospects.yaml
+  - tools/find_creators.yaml
+  - tools/ai_visibility.yaml
+extra:
+  python:
+    source: provider/go-to-market.py

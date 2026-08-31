@@ -1,0 +1,106 @@
+identity:
+  name: "web_research"
+  author: "aisa-team"
+  label:
+    en_US: "Web Research"
+    zh_Hans: "网络研究"
+    pt_BR: "Pesquisa na Web"
+    ja_JP: "ウェブリサーチ"
+description:
+  human:
+    en_US: "Live web research powered by Tavily via AIsa — search the web, extract page content, crawl a site, or map its URLs. Built for market research, competitor analysis, and GTM intelligence."
+    zh_Hans: "由 AIsa 提供的 Tavily 实时网络研究——搜索网页、提取页面内容、爬取网站或生成站点 URL 地图。适用于市场研究、竞品分析与 GTM 情报。"
+    pt_BR: "Pesquisa na web em tempo real com Tavily via AIsa — pesquise a web, extraia conteúdo de páginas, rastreie um site ou mapeie suas URLs. Ideal para pesquisa de mercado, análise de concorrentes e inteligência GTM."
+    ja_JP: "AIsa経由のTavilyによるリアルタイムウェブリサーチ——ウェブ検索、ページ内容の抽出、サイトのクロール、URLマップの生成。市場調査、競合分析、GTMインテリジェンスに最適。"
+  llm: "Live web research via Tavily. Modes: 'search' finds current web results for a query (market news, competitor moves, pricing pages, reviews); 'extract' fetches the readable content of specific URLs; 'crawl' explores a website and returns content from multiple pages; 'map' lists the URLs that make up a website. Use 'search' with the 'query' parameter; use 'extract'/'crawl'/'map' with the 'urls' parameter."
+parameters:
+  - name: mode
+    type: select
+    required: true
+    default: search
+    options:
+      - value: search
+        label:
+          en_US: "Search the web"
+          zh_Hans: "搜索网页"
+          pt_BR: "Pesquisar na web"
+          ja_JP: "ウェブ検索"
+      - value: extract
+        label:
+          en_US: "Extract page content"
+          zh_Hans: "提取页面内容"
+          pt_BR: "Extrair conteúdo da página"
+          ja_JP: "ページ内容を抽出"
+      - value: crawl
+        label:
+          en_US: "Crawl a website"
+          zh_Hans: "爬取网站"
+          pt_BR: "Rastrear um site"
+          ja_JP: "サイトをクロール"
+      - value: map
+        label:
+          en_US: "Map a website's URLs"
+          zh_Hans: "生成站点 URL 地图"
+          pt_BR: "Mapear URLs do site"
+          ja_JP: "サイトのURLマップ"
+    label:
+      en_US: "Mode"
+      zh_Hans: "模式"
+      pt_BR: "Modo"
+      ja_JP: "モード"
+    human_description:
+      en_US: "What to do: search the web, extract content from URLs, crawl a site, or map its URLs."
+      zh_Hans: "选择操作：搜索网页、从 URL 提取内容、爬取网站或生成 URL 地图。"
+      pt_BR: "O que fazer: pesquisar na web, extrair conteúdo de URLs, rastrear um site ou mapear suas URLs."
+      ja_JP: "実行内容：ウェブ検索、URLからの内容抽出、サイトのクロール、URLマップ生成。"
+    llm_description: "One of: 'search' (web search for a query), 'extract' (fetch content of given URLs), 'crawl' (explore a site from a starting URL), 'map' (list a site's URLs)."
+    form: llm
+  - name: query
+    type: string
+    required: false
+    label:
+      en_US: "Search query"
+      zh_Hans: "搜索查询"
+      pt_BR: "Consulta de pesquisa"
+      ja_JP: "検索クエリ"
+    human_description:
+      en_US: "The search query (required for 'search' mode)."
+      zh_Hans: "搜索查询（'search' 模式必填）。"
+      pt_BR: "A consulta de pesquisa (obrigatória no modo 'search')."
+      ja_JP: "検索クエリ（'search'モードでは必須）。"
+    llm_description: "The web search query. Required when mode is 'search'; ignored otherwise."
+    form: llm
+  - name: urls
+    type: string
+    required: false
+    label:
+      en_US: "URL(s)"
+      zh_Hans: "URL（可多个）"
+      pt_BR: "URL(s)"
+      ja_JP: "URL（複数可）"
+    human_description:
+      en_US: "One or more URLs, comma-separated. Required for 'extract', 'crawl', and 'map' modes ('crawl' and 'map' use the first URL)."
+      zh_Hans: "一个或多个 URL，用逗号分隔。'extract'、'crawl'、'map' 模式必填（'crawl' 和 'map' 使用第一个 URL）。"
+      pt_BR: "Uma ou mais URLs, separadas por vírgula. Obrigatório nos modos 'extract', 'crawl' e 'map' ('crawl' e 'map' usam a primeira URL)."
+      ja_JP: "カンマ区切りの1つ以上のURL。'extract'、'crawl'、'map'モードでは必須（'crawl'と'map'は最初のURLを使用）。"
+    llm_description: "Comma-separated URL list. Required when mode is 'extract' (all URLs are fetched), 'crawl' or 'map' (the first URL is the starting point). Ignored for 'search'."
+    form: llm
+  - name: max_depth
+    type: number
+    required: false
+    default: 2
+    label:
+      en_US: "Crawl depth"
+      zh_Hans: "爬取深度"
+      pt_BR: "Profundidade do rastreamento"
+      ja_JP: "クロール深度"
+    human_description:
+      en_US: "How many link levels to follow in 'crawl' mode (default 2)."
+      zh_Hans: "'crawl' 模式下跟随链接的层数（默认 2）。"
+      pt_BR: "Quantos níveis de links seguir no modo 'crawl' (padrão 2)."
+      ja_JP: "'crawl'モードでたどるリンクの階層数（デフォルト2）。"
+    llm_description: "Link depth for 'crawl' mode, 1-3. Default 2. Ignored for other modes."
+    form: llm
+extra:
+  python:
+    source: tools/web_research.py

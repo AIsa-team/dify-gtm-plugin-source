@@ -1,0 +1,35 @@
+version: 0.1.0
+type: plugin
+author: aisa-team
+name: go-to-market
+label:
+  en_US: AIsa Go-to-Market
+  ja_JP: AIsa Go-to-Market
+  zh_Hans: AIsa Go-to-Market
+  pt_BR: AIsa Go-to-Market
+description:
+  en_US: Premium GTM data for agents through one AIsa API key — competitor traffic intelligence, keyword & SEO research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility.
+  ja_JP: AIsa APIキー1つでエージェントにプレミアムGTMデータを——競合トラフィック分析、キーワード・SEOリサーチ、ソーシャルリスニング、B2Bプロスペクティング、クリエイター発掘、AI回答エンジン可視性。
+  zh_Hans: 一个 AIsa API 密钥即可为智能体提供高级 GTM 数据——竞品流量情报、关键词与 SEO 研究、社交聆听、B2B 客户开发、创作者发现、AI 答案引擎可见度。
+  pt_BR: Dados GTM premium para agentes com uma única chave de API AIsa — inteligência de tráfego de concorrentes, pesquisa de palavras-chave e SEO, escuta social, prospecção B2B, descoberta de criadores e visibilidade em mecanismos de resposta de IA.
+icon: icon.svg
+icon_dark: icon-dark.svg
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/go-to-market.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: null
+created_at: 2026-08-31T10:43:27.654803+08:00
+privacy: PRIVACY.md
+verified: false

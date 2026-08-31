@@ -1,0 +1,96 @@
+identity:
+  name: "find_prospects"
+  author: "aisa-team"
+  label:
+    en_US: "Find Prospects"
+    zh_Hans: "客户开发"
+    pt_BR: "Encontrar Prospects"
+    ja_JP: "プロスペクト検索"
+description:
+  human:
+    en_US: "B2B prospecting with Apollo via AIsa — search people by title/location, search companies, or enrich a company from its domain."
+    zh_Hans: "通过 AIsa 使用 Apollo 进行 B2B 客户开发——按职位/地区搜索联系人、搜索公司、或通过域名补全公司信息。"
+    pt_BR: "Prospecção B2B com Apollo via AIsa — pesquise pessoas por cargo/local, pesquise empresas ou enriqueça uma empresa pelo domínio."
+    ja_JP: "AIsa経由のApolloによるB2Bプロスペクティング——役職・所在地で人物検索、企業検索、ドメインからの企業情報エンリッチ。"
+  llm: "B2B prospecting via Apollo. search_type 'people': find contacts by job_titles (comma-separated, e.g. 'CEO, VP Marketing'), keywords, locations, company_size, or employer domain. search_type 'companies': find companies by keywords, locations, company_size. search_type 'enrich_company': full firmographic profile for one company domain. Use to build target account lists and find decision makers."
+parameters:
+  - name: search_type
+    type: select
+    required: true
+    default: people
+    options:
+      - value: people
+        label:
+          en_US: "Search people"
+      - value: companies
+        label:
+          en_US: "Search companies"
+      - value: enrich_company
+        label:
+          en_US: "Enrich a company"
+    label:
+      en_US: "Search type"
+      zh_Hans: "搜索类型"
+    human_description:
+      en_US: "What to search: people, companies, or enrich one company."
+      zh_Hans: "搜索对象：联系人、公司、或补全单个公司信息。"
+    llm_description: "One of: people, companies, enrich_company."
+    form: llm
+  - name: keywords
+    type: string
+    required: false
+    label:
+      en_US: "Keywords"
+      zh_Hans: "关键词"
+    human_description:
+      en_US: "Filter keywords, e.g. an industry or product category."
+      zh_Hans: "过滤关键词，如行业或产品类别。"
+    llm_description: "Free-text filter keywords, e.g. 'fintech' or 'developer tools'. Comma-separate multiple company keyword tags."
+    form: llm
+  - name: job_titles
+    type: string
+    required: false
+    label:
+      en_US: "Job titles"
+      zh_Hans: "职位"
+    human_description:
+      en_US: "Comma-separated job titles for people search, e.g. 'CTO, VP Engineering'."
+      zh_Hans: "people 搜索的职位列表，逗号分隔，如 'CTO, VP Engineering'。"
+    llm_description: "Comma-separated job titles for people search, e.g. 'Head of Growth, CMO'. People search only."
+    form: llm
+  - name: locations
+    type: string
+    required: false
+    label:
+      en_US: "Locations"
+      zh_Hans: "地区"
+    human_description:
+      en_US: "Comma-separated locations, e.g. 'United States, London'."
+      zh_Hans: "地区列表，逗号分隔，如 'United States, London'。"
+    llm_description: "Comma-separated locations (cities, states, or countries), e.g. 'San Francisco, United Kingdom'."
+    form: llm
+  - name: company_size
+    type: string
+    required: false
+    label:
+      en_US: "Company size"
+      zh_Hans: "公司规模"
+    human_description:
+      en_US: "Employee ranges, e.g. '11-50, 51-200'."
+      zh_Hans: "员工数区间，如 '11-50, 51-200'。"
+    llm_description: "Comma-separated employee count ranges in 'min-max' form, e.g. '11-50, 51-200'."
+    form: llm
+  - name: domain
+    type: string
+    required: false
+    label:
+      en_US: "Company domain"
+      zh_Hans: "公司域名"
+    human_description:
+      en_US: "Company domain — required for enrich_company, optional employer filter otherwise."
+      zh_Hans: "公司域名——enrich_company 必填，其他类型作为雇主过滤条件。"
+    llm_description: "A company's domain, e.g. 'stripe.com'. Required for enrich_company; for people search it filters by employer."
+    form: llm
+extra:
+  python:
+    source: tools/find_prospects.py

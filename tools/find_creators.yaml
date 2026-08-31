@@ -1,0 +1,91 @@
+identity:
+  name: "find_creators"
+  author: "aisa-team"
+  label:
+    en_US: "Find Creators"
+    zh_Hans: "创作者发现"
+    pt_BR: "Encontrar Criadores"
+    ja_JP: "クリエイター発掘"
+description:
+  human:
+    en_US: "Influencer and creator discovery with WaveInflu via AIsa — find creators similar to a seed profile (YouTube/TikTok) or look up a creator's contact email."
+    zh_Hans: "通过 AIsa 使用 WaveInflu 进行创作者发现——查找与种子账号相似的创作者（YouTube/TikTok），或查询创作者的联系邮箱。"
+    pt_BR: "Descoberta de influenciadores e criadores com WaveInflu via AIsa — encontre criadores similares a um perfil semente (YouTube/TikTok) ou consulte o e-mail de contato de um criador."
+    ja_JP: "AIsa経由のWaveInfluによるインフルエンサー・クリエイター発掘——シードプロフィールに類似したクリエイターの検索（YouTube/TikTok）、または連絡先メールの取得。"
+  llm: "Influencer/creator discovery via WaveInflu. Mode 'similar': given one creator's profile URL (a YouTube channel or TikTok profile you'd like more creators like), returns similar creators — use to build influencer shortlists for campaigns. Mode 'email': look up the contact email for a creator's profile URL. Both modes require 'profile_url'."
+parameters:
+  - name: mode
+    type: select
+    required: true
+    default: similar
+    options:
+      - value: similar
+        label:
+          en_US: "Find similar creators"
+      - value: email
+        label:
+          en_US: "Contact email lookup"
+    label:
+      en_US: "Mode"
+      zh_Hans: "模式"
+    human_description:
+      en_US: "'similar' finds creators like the seed profile; 'email' finds a creator's contact email."
+      zh_Hans: "'similar' 查找相似创作者；'email' 查询创作者联系邮箱。"
+    llm_description: "One of: similar, email."
+    form: llm
+  - name: profile_url
+    type: string
+    required: true
+    label:
+      en_US: "Creator profile URL"
+      zh_Hans: "创作者主页 URL"
+    human_description:
+      en_US: "Full URL of the creator's channel/profile."
+      zh_Hans: "创作者频道/主页的完整 URL。"
+    llm_description: "Full URL of the creator's YouTube channel or TikTok profile, e.g. 'https://www.youtube.com/@mkbhd'."
+    form: llm
+  - name: platform
+    type: select
+    required: false
+    default: youtube
+    options:
+      - value: youtube
+        label:
+          en_US: "YouTube"
+      - value: tiktok
+        label:
+          en_US: "TikTok"
+    label:
+      en_US: "Platform"
+      zh_Hans: "平台"
+    human_description:
+      en_US: "Platform for 'similar' mode."
+      zh_Hans: "'similar' 模式的平台。"
+    llm_description: "Platform of the seed profile for 'similar' mode: youtube or tiktok. Match it to the profile_url."
+    form: llm
+  - name: content_direction
+    type: string
+    required: false
+    label:
+      en_US: "Content direction"
+      zh_Hans: "内容方向"
+    human_description:
+      en_US: "Optional niche/topic to steer similar-creator results."
+      zh_Hans: "可选：引导相似创作者结果的领域/主题。"
+    llm_description: "Optional content niche to steer results, e.g. 'productivity software reviews'."
+    form: llm
+  - name: limit
+    type: number
+    required: false
+    default: 10
+    label:
+      en_US: "Result limit"
+      zh_Hans: "结果数量"
+    human_description:
+      en_US: "How many similar creators to return (1-50, default 10)."
+      zh_Hans: "返回的相似创作者数量（1-50，默认 10）。"
+    llm_description: "Number of similar creators to return, 1-50. Default 10."
+    form: llm
+extra:
+  python:
+    source: tools/find_creators.py

@@ -1,0 +1,106 @@
+identity:
+  name: "traffic_intel"
+  author: "aisa-team"
+  label:
+    en_US: "Traffic Intelligence"
+    zh_Hans: "流量情报"
+    pt_BR: "Inteligência de Tráfego"
+    ja_JP: "トラフィック分析"
+description:
+  human:
+    en_US: "Website traffic, engagement, audience, rankings, similar sites, tech stack and domain authority — powered by Similarweb and Ahrefs via AIsa."
+    zh_Hans: "网站流量、互动、受众、排名、相似网站、技术栈与域名权重——由 AIsa 提供的 Similarweb 与 Ahrefs 数据。"
+    pt_BR: "Tráfego do site, engajamento, audiência, rankings, sites similares, stack de tecnologia e autoridade de domínio — via Similarweb e Ahrefs pela AIsa."
+    ja_JP: "ウェブサイトのトラフィック、エンゲージメント、オーディエンス、ランキング、類似サイト、技術スタック、ドメインオーソリティ——AIsa経由のSimilarwebとAhrefs。"
+  llm: "Get competitive intelligence about any website domain. Metrics: 'overview' (traffic snapshot), 'trend' (traffic over time), 'engagement' (visits, pages per visit), 'ranking' (global/category rank), 'geographies' (top visitor countries), 'demographics' (visitor age/gender), 'similar_sites' (competitor sites), 'technologies' (tech stack), 'popular_pages' (top pages), 'domain_authority' (Ahrefs domain rating and backlink metrics). Use for competitor analysis and market sizing."
+parameters:
+  - name: domain
+    type: string
+    required: true
+    label:
+      en_US: "Domain"
+      zh_Hans: "域名"
+    human_description:
+      en_US: "Target website domain, e.g. example.com (no https://)."
+      zh_Hans: "目标网站域名，如 example.com（不含 https://）。"
+    llm_description: "The website domain to analyze, e.g. 'notion.so'. Bare domain only, no protocol or path."
+    form: llm
+  - name: metric
+    type: select
+    required: true
+    default: overview
+    options:
+      - value: overview
+        label:
+          en_US: "Traffic overview"
+      - value: trend
+        label:
+          en_US: "Traffic trend"
+      - value: engagement
+        label:
+          en_US: "Engagement"
+      - value: ranking
+        label:
+          en_US: "Ranking"
+      - value: geographies
+        label:
+          en_US: "Top geographies"
+      - value: demographics
+        label:
+          en_US: "Demographics"
+      - value: similar_sites
+        label:
+          en_US: "Similar sites"
+      - value: technologies
+        label:
+          en_US: "Technologies"
+      - value: popular_pages
+        label:
+          en_US: "Popular pages"
+      - value: domain_authority
+        label:
+          en_US: "Domain authority (Ahrefs)"
+    label:
+      en_US: "Metric"
+      zh_Hans: "指标"
+    human_description:
+      en_US: "Which intelligence to fetch for the domain."
+      zh_Hans: "要获取的域名情报类型。"
+    llm_description: "One of: overview, trend, engagement, ranking, geographies, demographics, similar_sites, technologies, popular_pages, domain_authority."
+    form: llm
+  - name: country
+    type: string
+    required: false
+    label:
+      en_US: "Country"
+      zh_Hans: "国家"
+    human_description:
+      en_US: "Country filter: 'us' or 'ww' (worldwide, default)."
+      zh_Hans: "国家过滤：'us' 或 'ww'（全球，默认）。"
+    llm_description: "Optional country filter. Similarweb supports 'us' or 'ww' (worldwide). Default 'ww'."
+    form: llm
+  - name: start_date
+    type: string
+    required: false
+    label:
+      en_US: "Start month"
+      zh_Hans: "起始月份"
+    human_description:
+      en_US: "Start month YYYY-MM. Defaults to a recent 3-month window (data has ~2-month lag)."
+      zh_Hans: "起始月份 YYYY-MM。默认为最近的 3 个月窗口（数据约有 2 个月延迟）。"
+    llm_description: "Optional start month in YYYY-MM format. Leave empty for a sensible default; Similarweb data lags ~2 months behind the current date."
+    form: llm
+  - name: end_date
+    type: string
+    required: false
+    label:
+      en_US: "End month"
+      zh_Hans: "结束月份"
+    human_description:
+      en_US: "End month YYYY-MM. Defaults to ~2 months before the current month."
+      zh_Hans: "结束月份 YYYY-MM。默认为当前月份约 2 个月前。"
+    llm_description: "Optional end month in YYYY-MM format. Leave empty for a sensible default."
+    form: llm
+extra:
+  python:
+    source: tools/traffic_intel.py

@@ -1,0 +1,86 @@
+identity:
+  name: "keyword_seo"
+  author: "aisa-team"
+  label:
+    en_US: "Keyword & SEO"
+    zh_Hans: "关键词与 SEO"
+    pt_BR: "Palavras-chave e SEO"
+    ja_JP: "キーワード・SEO"
+description:
+  human:
+    en_US: "Keyword volume, difficulty, suggestions, domain keywords, competitors and backlinks — powered by Semrush and DataForSEO via AIsa."
+    zh_Hans: "关键词搜索量、难度、建议、域名关键词、竞争对手与外链——由 AIsa 提供的 Semrush 与 DataForSEO 数据。"
+    pt_BR: "Volume de palavras-chave, dificuldade, sugestões, palavras-chave de domínio, concorrentes e backlinks — via Semrush e DataForSEO pela AIsa."
+    ja_JP: "キーワードの検索ボリューム、難易度、サジェスト、ドメインキーワード、競合、バックリンク——AIsa経由のSemrushとDataForSEO。"
+  llm: "SEO and keyword research. Metrics: 'keyword_overview' (volume/CPC for one keyword), 'keyword_difficulty' (up to 20 keywords, semicolon-separated), 'keyword_suggestions' (related keyword ideas from a seed keyword), 'search_volume' (Google Ads volume for up to 100 keywords, comma-separated), 'domain_keywords' (a domain's organic keywords), 'domain_competitors' (a domain's organic competitors), 'backlinks_overview' (a domain's backlink profile). Keyword metrics need 'keyword'; domain metrics need 'domain'."
+parameters:
+  - name: metric
+    type: select
+    required: true
+    default: keyword_overview
+    options:
+      - value: keyword_overview
+        label:
+          en_US: "Keyword overview"
+      - value: keyword_difficulty
+        label:
+          en_US: "Keyword difficulty"
+      - value: keyword_suggestions
+        label:
+          en_US: "Keyword suggestions"
+      - value: search_volume
+        label:
+          en_US: "Search volume"
+      - value: domain_keywords
+        label:
+          en_US: "Domain organic keywords"
+      - value: domain_competitors
+        label:
+          en_US: "Domain competitors"
+      - value: backlinks_overview
+        label:
+          en_US: "Backlinks overview"
+    label:
+      en_US: "Metric"
+      zh_Hans: "指标"
+    human_description:
+      en_US: "Which SEO metric to fetch."
+      zh_Hans: "要获取的 SEO 指标。"
+    llm_description: "One of: keyword_overview, keyword_difficulty, keyword_suggestions, search_volume, domain_keywords, domain_competitors, backlinks_overview."
+    form: llm
+  - name: keyword
+    type: string
+    required: false
+    label:
+      en_US: "Keyword(s)"
+      zh_Hans: "关键词"
+    human_description:
+      en_US: "Keyword or keyword list (separators: ';' for difficulty, ',' for search volume)."
+      zh_Hans: "关键词或关键词列表（difficulty 用 ';' 分隔，search_volume 用 ',' 分隔）。"
+    llm_description: "The keyword(s) to research. Required for keyword_overview, keyword_difficulty (up to 20, ';'-separated), keyword_suggestions (one seed keyword), search_volume (up to 100, ','-separated)."
+    form: llm
+  - name: domain
+    type: string
+    required: false
+    label:
+      en_US: "Domain"
+      zh_Hans: "域名"
+    human_description:
+      en_US: "Target domain for domain_keywords, domain_competitors, backlinks_overview."
+      zh_Hans: "domain_keywords、domain_competitors、backlinks_overview 的目标域名。"
+    llm_description: "The website domain, e.g. 'notion.so'. Required for domain_keywords, domain_competitors, and backlinks_overview."
+    form: llm
+  - name: country
+    type: string
+    required: false
+    label:
+      en_US: "Country"
+      zh_Hans: "国家"
+    human_description:
+      en_US: "Two-letter country code for the regional database (default: us)."
+      zh_Hans: "区域数据库的两位国家代码（默认 us）。"
+    llm_description: "Optional two-letter country code (us, uk, de, jp, ...). Default 'us'."
+    form: llm
+extra:
+  python:
+    source: tools/keyword_seo.py

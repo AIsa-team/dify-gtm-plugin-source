@@ -1,0 +1,69 @@
+identity:
+  name: "ai_visibility"
+  author: "aisa-team"
+  label:
+    en_US: "AI Visibility"
+    zh_Hans: "AI 可见度"
+    pt_BR: "Visibilidade em IA"
+    ja_JP: "AI可視性"
+description:
+  human:
+    en_US: "See how AI answer engines (ChatGPT, Gemini, Perplexity, Google AI Mode) answer any prompt — GEO/AEO brand visibility tracking with Oxylabs via AIsa."
+    zh_Hans: "查看 AI 答案引擎（ChatGPT、Gemini、Perplexity、Google AI Mode）如何回答任意问题——通过 AIsa 使用 Oxylabs 进行 GEO/AEO 品牌可见度追踪。"
+    pt_BR: "Veja como os mecanismos de resposta de IA (ChatGPT, Gemini, Perplexity, Google AI Mode) respondem a qualquer prompt — rastreamento de visibilidade GEO/AEO com Oxylabs via AIsa."
+    ja_JP: "AI回答エンジン（ChatGPT、Gemini、Perplexity、Google AIモード）が任意のプロンプトにどう答えるかを確認——AIsa経由のOxylabsによるGEO/AEOブランド可視性トラッキング。"
+  llm: "Answer-engine visibility (GEO/AEO) tracking. Sends a prompt to a real AI answer engine and returns its live answer — use to check whether and how a brand, product, or competitor appears when users ask AI assistants questions like 'best CRM for startups'. Sources: chatgpt, gemini, perplexity, google_ai_mode, google_search (classic SERP). Requires 'prompt'."
+parameters:
+  - name: prompt
+    type: string
+    required: true
+    label:
+      en_US: "Prompt"
+      zh_Hans: "提问"
+    human_description:
+      en_US: "The question to ask the AI engine, as a real user would phrase it."
+      zh_Hans: "向 AI 引擎提出的问题，按真实用户的措辞。"
+    llm_description: "The question to ask the answer engine, phrased as a real user would, e.g. 'what is the best project management tool for remote teams?'."
+    form: llm
+  - name: source
+    type: select
+    required: false
+    default: chatgpt
+    options:
+      - value: chatgpt
+        label:
+          en_US: "ChatGPT"
+      - value: gemini
+        label:
+          en_US: "Gemini"
+      - value: perplexity
+        label:
+          en_US: "Perplexity"
+      - value: google_ai_mode
+        label:
+          en_US: "Google AI Mode"
+      - value: google_search
+        label:
+          en_US: "Google Search (classic)"
+    label:
+      en_US: "Answer engine"
+      zh_Hans: "答案引擎"
+    human_description:
+      en_US: "Which engine to query."
+      zh_Hans: "要查询的引擎。"
+    llm_description: "One of: chatgpt, gemini, perplexity, google_ai_mode, google_search. Default chatgpt."
+    form: llm
+  - name: geo_location
+    type: string
+    required: false
+    label:
+      en_US: "Geo location"
+      zh_Hans: "地理位置"
+    human_description:
+      en_US: "Optional location context, e.g. 'United States'."
+      zh_Hans: "可选的地理位置上下文，如 'United States'。"
+    llm_description: "Optional geographic location for the query context, e.g. 'United States' or 'Germany'."
+    form: llm
+extra:
+  python:
+    source: tools/ai_visibility.py

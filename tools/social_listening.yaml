@@ -1,0 +1,99 @@
+identity:
+  name: "social_listening"
+  author: "aisa-team"
+  label:
+    en_US: "Social Listening"
+    zh_Hans: "社交聆听"
+    pt_BR: "Escuta Social"
+    ja_JP: "ソーシャルリスニング"
+description:
+  human:
+    en_US: "Search posts, profiles and conversations across X, Reddit, Instagram, Pinterest and YouTube — read-only, via AIsa."
+    zh_Hans: "跨 X、Reddit、Instagram、Pinterest、YouTube 搜索帖子、个人主页与讨论——只读，由 AIsa 提供。"
+    pt_BR: "Pesquise posts, perfis e conversas no X, Reddit, Instagram, Pinterest e YouTube — somente leitura, via AIsa."
+    ja_JP: "X、Reddit、Instagram、Pinterest、YouTube全体で投稿・プロフィール・会話を検索——読み取り専用、AIsa経由。"
+  llm: "Read-only social listening. Platforms: 'x' (Twitter), 'reddit', 'instagram', 'pinterest', 'youtube'. Modes: 'search' finds recent posts/content matching a query (brand mentions, competitor buzz, audience conversations); 'profile' fetches a public profile (x and instagram only, needs 'handle'). For Reddit, an optional 'subreddit' narrows the search to one community. Use for launch reaction tracking, brand monitoring, and audience research."
+parameters:
+  - name: platform
+    type: select
+    required: true
+    default: x
+    options:
+      - value: x
+        label:
+          en_US: "X (Twitter)"
+      - value: reddit
+        label:
+          en_US: "Reddit"
+      - value: instagram
+        label:
+          en_US: "Instagram"
+      - value: pinterest
+        label:
+          en_US: "Pinterest"
+      - value: youtube
+        label:
+          en_US: "YouTube"
+    label:
+      en_US: "Platform"
+      zh_Hans: "平台"
+    human_description:
+      en_US: "Which social platform to search."
+      zh_Hans: "要搜索的社交平台。"
+    llm_description: "One of: x, reddit, instagram, pinterest, youtube."
+    form: llm
+  - name: mode
+    type: select
+    required: false
+    default: search
+    options:
+      - value: search
+        label:
+          en_US: "Search content"
+      - value: profile
+        label:
+          en_US: "Look up a profile"
+    label:
+      en_US: "Mode"
+      zh_Hans: "模式"
+    human_description:
+      en_US: "'search' for content, 'profile' for a public profile (x/instagram only)."
+      zh_Hans: "'search' 搜索内容，'profile' 查询公开主页（仅 x/instagram）。"
+    llm_description: "'search' (default) or 'profile'. Profile mode works only for x and instagram and requires 'handle'."
+    form: llm
+  - name: query
+    type: string
+    required: false
+    label:
+      en_US: "Search query"
+      zh_Hans: "搜索查询"
+    human_description:
+      en_US: "What to search for (required in search mode)."
+      zh_Hans: "搜索内容（search 模式必填）。"
+    llm_description: "The search query — brand name, product, hashtag, or topic. Required when mode is 'search'."
+    form: llm
+  - name: handle
+    type: string
+    required: false
+    label:
+      en_US: "Handle"
+      zh_Hans: "用户名"
+    human_description:
+      en_US: "Username for profile mode, without @ (x/instagram)."
+      zh_Hans: "profile 模式的用户名，不含 @（x/instagram）。"
+    llm_description: "The account username without '@'. Required when mode is 'profile'."
+    form: llm
+  - name: subreddit
+    type: string
+    required: false
+    label:
+      en_US: "Subreddit"
+      zh_Hans: "Subreddit"
+    human_description:
+      en_US: "Optional: limit a Reddit search to one subreddit (e.g. 'SaaS')."
+      zh_Hans: "可选：将 Reddit 搜索限定在某个 subreddit（如 'SaaS'）。"
+    llm_description: "Optional subreddit name without 'r/' to scope a Reddit search, e.g. 'startups'. Reddit only."
+    form: llm
+extra:
+  python:
+    source: tools/social_listening.py
