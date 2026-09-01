@@ -6,7 +6,7 @@
 
 Premium go-to-market data for your Dify agents — competitor traffic intelligence, keyword research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility — all through **one AIsa API key**.
 
-[Documentation in Simplified Chinese](README_zh_Hans.md)
+[Documentation in Simplified Chinese](README.zh_Hans.md)
 
 ## Why this plugin
 

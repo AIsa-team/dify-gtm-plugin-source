@@ -200,6 +200,14 @@ def test_yaml_wiring():
     manifest = yaml.safe_load(open(os.path.join(ROOT, "manifest.yaml")))
     check("manifest points at provider yaml",
           manifest["plugins"]["tools"] == ["provider/go-to-market.yaml"])
+    check("manifest has required repo field",
+          manifest.get("repo", "").startswith("https://github.com/AIsa-team/"))
+    check("manifest has required contact field", "@" in manifest.get("contact", ""))
+    check("manifest sets minimum_dify_version",
+          isinstance(manifest["meta"].get("minimum_dify_version"), str))
+    check("localized README uses dot naming",
+          os.path.exists(os.path.join(ROOT, "README.zh_Hans.md"))
+          and not os.path.exists(os.path.join(ROOT, "README_zh_Hans.md")))
 
 
 def test_readme_rules():
