@@ -111,6 +111,11 @@ def test_truncation_and_summary():
     check("summary finds nested records", "Jane" in s)
     s2 = generic_summary("T:", {"results": [{"Keyword": "ai agents"}]})
     check("summary matches keys case-insensitively", "ai agents" in s2)
+    # regression: mixed-case candidate ('userName') against creator-style rows
+    s3 = generic_summary("T:", {"results": [{"userName": "mreflow", "subscribers": 1}]})
+    check("mixed-case candidate keys do not crash", "mreflow" in s3)
+    s4 = generic_summary("T:", {"results": [{"username": "a", "userName": "a"}]})
+    check("duplicate case-variant keys deduped", s4.count("=a") == 1)
 
 
 def test_request_headers():

@@ -372,7 +372,11 @@ def generic_summary(title: str, result: Any, max_items: int = 8) -> str:
         lines.append(f"{len(items)} record(s) returned. First {len(shown)}:")
         for item in shown:
             lowered = {k.lower(): k for k in item}
-            keys = [lowered[k] for k in _SUMMARY_ID_KEYS if k.lower() in lowered and item[lowered[k.lower()]]]
+            keys = []
+            for candidate in _SUMMARY_ID_KEYS:
+                actual = lowered.get(candidate.lower())
+                if actual and item.get(actual) and actual not in keys:
+                    keys.append(actual)
             if keys:
                 lines.append(
                     "- " + ", ".join(f"{k}={str(item[k])[:70]}" for k in keys[:3])
