@@ -21,6 +21,53 @@ def _latest_published_month(snapshot: Any) -> str:
                 return value[:7]
     return ""
 
+
+def _resolve_window(client, domain, sw_country, tool_parameters, span: int):
+    """(start, end) months for a dated Similarweb metric.
+
+    Per-endpoint upstream rules: demographics/technologies accept EXACTLY one
+    monthly bucket; similar_sites exactly three anchored to the latest
+    published window. User-supplied dates are always respected verbatim.
+    Otherwise anchor to the latest published month via the free snapshot
+    probe; fall back to the lagged default window."""
+    user_s = str(tool_parameters.get("start_date") or "").strip()
+    user_e = str(tool_parameters.get("end_date") or "").strip()
+    if user_s and user_e:
+        return user_s, user_e
+    try:
+        probe = client.request(
+            "GET", "/similarweb/website-traffic-snapshot",
+            params={"domain": domain, "country": sw_country},
+        )
+        latest = _latest_published_month(probe)
+        if latest:
+            return shift_month_str(latest, -(span - 1)), latest
+    except AisaApiError:
+        pass
+    _, end = default_month_range()
+    return shift_month_str(end, -(span - 1)), end
+
+
+_WINDOW_ERROR_MARKERS = ("101", "120", "Dates not in range", "span exactly", "SAME month")
+
+
+def _dated_request(client, path, base_params, start, end, span: int):
+    """Issue a dated request; on an upstream window rejection, advance the
+    window one month (keeping the span) and retry once."""
+    try:
+        return client.request(
+            "GET", path, params={**base_params, "start_date": start, "end_date": end}
+        )
+    except AisaApiError as e:
+        if not any(m in e.message for m in _WINDOW_ERROR_MARKERS):
+            raise
+        new_end = shift_month_str(end, 1)
+        new_start = shift_month_str(new_end, -(span - 1))
+        return client.request(
+            "GET", path,
+            params={**base_params, "start_date": new_start, "end_date": new_end},
+        )
+
 _METRICS = (
     "overview",
     "trend",
@@ -105,71 +152,30 @@ class TrafficIntelTool(Tool):
                     params={"domain": domain},
                 )
             elif metric == "demographics":
-                result = client.request(
-                    "GET", "/similarweb/website/demographics",
-                    params={
-                        "domain": domain,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "granularity": "monthly",
-                        "country": sw_country,
-                    },
+                # Upstream rule: start and end must be the SAME month.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=1)
+                result = _dated_request(
+                    client, "/similarweb/website/demographics",
+                    {"domain": domain, "granularity": "monthly", "country": sw_country},
+                    s, e, span=1,
                 )
             elif metric == "similar_sites":
-                # Upstream constraint: the window must span EXACTLY 3 consecutive
-                # months AND be Similarweb's most recent supported window (error
-                # 120 / 101 otherwise). Anchor it to the latest published month,
-                # discovered via the free traffic-snapshot probe; fall back to
-                # advancing the window once if the anchor is still rejected.
-                ss_end, ss_start = end_date, start_date
-                if not (tool_parameters.get("start_date") and tool_parameters.get("end_date")):
-                    try:
-                        probe = client.request(
-                            "GET", "/similarweb/website-traffic-snapshot",
-                            params={"domain": domain, "country": sw_country},
-                        )
-                        latest = _latest_published_month(probe)
-                        if latest:
-                            ss_end, ss_start = latest, shift_month_str(latest, -2)
-                    except AisaApiError:
-                        pass  # keep defaults; the retry below still applies
-                try:
-                    result = client.request(
-                        "GET", "/similarweb/website/similar-sites",
-                        params={
-                            "domain": domain,
-                            "start_date": ss_start,
-                            "end_date": ss_end,
-                            "limit": 20,
-                            "country": sw_country,
-                        },
-                    )
-                except AisaApiError as e:
-                    if not any(marker in e.message for marker in ("101", "120", "Dates not in range", "span exactly")):
-                        raise
-                    ss_end = shift_month_str(ss_end, 1)
-                    ss_start = shift_month_str(ss_end, -2)
-                    result = client.request(
-                        "GET", "/similarweb/website/similar-sites",
-                        params={
-                            "domain": domain,
-                            "start_date": ss_start,
-                            "end_date": ss_end,
-                            "limit": 20,
-                            "country": sw_country,
-                        },
-                    )
+                # Upstream rule: EXACTLY 3 consecutive months, anchored to
+                # Similarweb's most recent published window.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=3)
+                result = _dated_request(
+                    client, "/similarweb/website/similar-sites",
+                    {"domain": domain, "limit": 20, "country": sw_country},
+                    s, e, span=3,
+                )
             elif metric == "technologies":
-                result = client.request(
-                    "GET", "/similarweb/website/technologies",
-                    params={
-                        "domain": domain,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "granularity": "monthly",
-                        "limit": 20,
-                        "country": sw_country,
-                    },
+                # Upstream rule: start and end must be the SAME month.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=1)
+                result = _dated_request(
+                    client, "/similarweb/website/technologies",
+                    {"domain": domain, "granularity": "monthly", "limit": 20,
+                     "country": sw_country},
+                    s, e, span=1,
                 )
             elif metric == "popular_pages":
                 result = client.request(

@@ -206,6 +206,38 @@ def test_tool_helpers():
           ti._latest_published_month({"data": {"month": "2026-07"}}) == "2026-07")
     check("latest month empty on junk", ti._latest_published_month({"x": 1}) == "")
 
+    from utils.aisa_client import AisaApiError
+
+    class StubClient:
+        def __init__(self, latest="2026-07", fail_windows=0):
+            self.calls, self.latest, self.fail = [], latest, fail_windows
+
+        def request(self, method, path, params=None, **kw):
+            self.calls.append((path, dict(params or {})))
+            if "snapshot" in path:
+                return {"meta": {"end_date": self.latest}}
+            if self.fail > 0:
+                self.fail -= 1
+                raise AisaApiError("400", "Dates not in range (error 101)")
+            return {"data": [1]}
+
+    # single-month window anchored to latest published month
+    c = StubClient()
+    s, e = ti._resolve_window(c, "x.com", "ww", {}, span=1)
+    check("span=1 window is one month at latest", (s, e) == ("2026-07", "2026-07"))
+    s, e = ti._resolve_window(c, "x.com", "ww", {}, span=3)
+    check("span=3 window covers 3 months", (s, e) == ("2026-05", "2026-07"))
+    s, e = ti._resolve_window(c, "x.com", "ww", {"start_date": "2026-01", "end_date": "2026-01"}, span=1)
+    check("user dates respected verbatim", (s, e) == ("2026-01", "2026-01"))
+
+    # window-rejection retry advances one month, preserves span
+    c = StubClient(fail_windows=1)
+    ti._dated_request(c, "/similarweb/website/demographics", {"domain": "x.com"},
+                      "2026-06", "2026-06", span=1)
+    retry = c.calls[-1][1]
+    check("window retry advances one month, same span",
+          retry["start_date"] == "2026-07" and retry["end_date"] == "2026-07")
+
     from utils.gtm_common import shift_month_str
     check("month shift back", shift_month_str("2026-07", -2) == "2026-05")
     check("month shift across year", shift_month_str("2026-01", -2) == "2025-11")
