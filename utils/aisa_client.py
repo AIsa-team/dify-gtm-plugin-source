@@ -101,10 +101,14 @@ class AisaClient:
         """Make a request and return the parsed, error-checked JSON body."""
         url = f"{base_url or self.BASE_URL}{endpoint}"
         if params:
-            # doseq=True so list values expand to repeated keys, which is how
-            # Apollo-style array params (e.g. person_titles[]) are encoded.
+            # doseq=True so list values expand to repeated keys (Apollo-style
+            # array params, e.g. person_titles[]). quote_via=quote encodes
+            # spaces as %20 (RFC 3986) rather than '+' — the gateway's
+            # contract validator rejects '+'-encoded spaces in query values.
             query_string = urllib.parse.urlencode(
-                {k: v for k, v in params.items() if v is not None}, doseq=True
+                {k: v for k, v in params.items() if v is not None},
+                doseq=True,
+                quote_via=urllib.parse.quote,
             )
             url = f"{url}?{query_string}"
 

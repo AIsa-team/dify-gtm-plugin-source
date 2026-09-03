@@ -142,7 +142,7 @@ def test_request_headers():
         c = m.AisaClient("k")
         c.request("GET", "/semrush/keyword-overview", params={"phrase": "AI agents"})
         check("GET sends no Content-Type", captured["ct"] is None)
-        check("GET query encoded", "phrase=AI+agents" in captured["url"])
+        check("spaces encoded as %20, not +", "phrase=AI%20agents" in captured["url"])
         c.request("POST", "/tavily/search", data={"query": "x"})
         check("POST sends Content-Type json", captured["ct"] == "application/json")
         c.request("POST", "/apollo/mixed_people/api_search",
