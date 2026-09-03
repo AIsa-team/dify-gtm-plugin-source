@@ -188,12 +188,16 @@ def test_tool_helpers():
     check("garbage size ranges dropped", fp._size_ranges("big companies") == [])
 
     av = load("ai_visibility")
-    check("google_ai_mode uses query field", av._prompt_field("google_ai_mode", "x") == {"query": "x"})
-    check("google_search uses query field", av._prompt_field("google_search", "x") == {"query": "x"})
-    check("chatgpt uses prompt, capped at 4000",
-          av._prompt_field("chatgpt", "p" * 5000) == {"prompt": "p" * 4000})
+    check("google_ai_mode uses query + render",
+          av._source_params("google_ai_mode", "x") == {"query": "x", "render": "html"})
+    check("google_search uses query + render",
+          av._source_params("google_search", "x") == {"query": "x", "render": "html"})
+    check("chatgpt uses capped prompt + web search",
+          av._source_params("chatgpt", "p" * 5000) == {"prompt": "p" * 4000, "search": True})
+    check("gemini capped at 8000, no search flag",
+          av._source_params("gemini", "g" * 9000) == {"prompt": "g" * 8000})
     check("perplexity uses prompt, uncapped",
-          av._prompt_field("perplexity", "hello") == {"prompt": "hello"})
+          av._source_params("perplexity", "hello") == {"prompt": "hello"})
 
     ti = load("traffic_intel")
     check("latest month from snapshot meta",

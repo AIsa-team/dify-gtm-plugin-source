@@ -8,16 +8,23 @@ from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncat
 
 _SOURCES = ("chatgpt", "gemini", "perplexity", "google_ai_mode", "google_search")
 
-# Per the AIsa contract: Google-type sources (google_search AND google_ai_mode)
-# take 'query'; the AI engines take 'prompt', with per-engine length caps.
+# Per the AIsa/Oxylabs contract, each source expects a specific parameter set:
+# - google_search / google_ai_mode: 'query' + render="html" (page must be
+#   rendered before parsing; omitting render is rejected with a 400)
+# - chatgpt: 'prompt' (max 4000 chars) + search=true (browse the web before
+#   answering — matches what real users' ChatGPT does, and yields citations)
+# - gemini: 'prompt' (max 8000 chars); perplexity: 'prompt'
 _PROMPT_CAPS = {"chatgpt": 4000, "gemini": 8000}
 
 
-def _prompt_field(source: str, prompt: str) -> dict:
+def _source_params(source: str, prompt: str) -> dict:
     if source in ("google_search", "google_ai_mode"):
-        return {"query": prompt}
+        return {"query": prompt, "render": "html"}
     cap = _PROMPT_CAPS.get(source)
-    return {"prompt": prompt[:cap] if cap else prompt}
+    params: dict = {"prompt": prompt[:cap] if cap else prompt}
+    if source == "chatgpt":
+        params["search"] = True
+    return params
 
 
 class AiVisibilityTool(Tool):
@@ -38,7 +45,7 @@ class AiVisibilityTool(Tool):
             return
 
         body: dict[str, Any] = {"source": source, "parse": True}
-        body.update(_prompt_field(source, prompt))
+        body.update(_source_params(source, prompt))
         if geo_location:
             body["geo_location"] = geo_location
 
