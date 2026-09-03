@@ -32,6 +32,13 @@ def today_str() -> str:
     return date.today().isoformat()
 
 
+def shift_month_str(year_month: str, delta: int) -> str:
+    """Shift a 'YYYY-MM' string by delta months."""
+    year, month = int(year_month[:4]), int(year_month[5:7])
+    y, m = _shift_month(year, month, delta)
+    return month_str(y, m)
+
+
 # Country code -> DataForSEO location_name, for the major GTM markets.
 # Unknown codes fall back to no location filter (worldwide/US default upstream).
 _DFS_LOCATIONS = {

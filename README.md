@@ -1,7 +1,7 @@
 # AIsa Go-to-Market
 
 **Author:** aisa-team
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Type:** tool
 
 Premium go-to-market data for your Dify agents — competitor traffic intelligence, keyword research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility — all through **one AIsa API key**.
@@ -45,7 +45,7 @@ The plugin makes outbound HTTPS (port 443) requests to **`api.aisa.one` only** �
 
 ## Usage notes
 
-- **Billing** is usage-based per call through your AIsa account (for example, Semrush keyword lookups are $0.09 per successful call; failed calls are not charged). When credit runs out, tools return a clear error with a top-up link instead of silently failing.
+- **Billing** is usage-based per call through your AIsa account — traffic snapshots/trends are free, most search and social calls cost ~$0.01, Similarweb dated metrics are $0.10, and the most expensive calls are Semrush keyword difficulty ($0.45, up to 20 keywords per call) and organic competitors ($0.36). Failed calls are not charged. When credit runs out, tools return a clear error with a top-up link instead of silently failing.
 - **Traffic data lag**: Similarweb monthly metrics trail the current date by about two months. Leave the date parameters empty and the tool picks a valid recent window automatically.
 - **Separators**: keyword difficulty accepts up to 20 keywords separated by `;` — search volume accepts up to 100 separated by `,`.
 - **Country targeting**: pass two-letter codes or full names ("de", "Germany") — 30+ markets are mapped for localized keyword data.

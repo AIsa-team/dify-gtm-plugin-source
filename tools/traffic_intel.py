@@ -5,7 +5,21 @@ from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
 from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
-from utils.gtm_common import default_month_range, today_str
+from utils.gtm_common import default_month_range, shift_month_str, today_str
+
+
+def _latest_published_month(snapshot: Any) -> str:
+    """Extract the latest published month from a traffic-snapshot response.
+
+    The snapshot endpoint is free and auto-selects the most recent available
+    month, echoing it in meta.end_date / data.month ('YYYY-MM')."""
+    if isinstance(snapshot, dict):
+        meta = snapshot.get("meta") or {}
+        data = snapshot.get("data") or {}
+        for value in (meta.get("end_date"), data.get("month")):
+            if isinstance(value, str) and len(value) >= 7:
+                return value[:7]
+    return ""
 
 _METRICS = (
     "overview",
@@ -102,16 +116,49 @@ class TrafficIntelTool(Tool):
                     },
                 )
             elif metric == "similar_sites":
-                result = client.request(
-                    "GET", "/similarweb/website/similar-sites",
-                    params={
-                        "domain": domain,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "limit": 20,
-                        "country": sw_country,
-                    },
-                )
+                # Upstream constraint: the window must span EXACTLY 3 consecutive
+                # months AND be Similarweb's most recent supported window (error
+                # 120 / 101 otherwise). Anchor it to the latest published month,
+                # discovered via the free traffic-snapshot probe; fall back to
+                # advancing the window once if the anchor is still rejected.
+                ss_end, ss_start = end_date, start_date
+                if not (tool_parameters.get("start_date") and tool_parameters.get("end_date")):
+                    try:
+                        probe = client.request(
+                            "GET", "/similarweb/website-traffic-snapshot",
+                            params={"domain": domain, "country": sw_country},
+                        )
+                        latest = _latest_published_month(probe)
+                        if latest:
+                            ss_end, ss_start = latest, shift_month_str(latest, -2)
+                    except AisaApiError:
+                        pass  # keep defaults; the retry below still applies
+                try:
+                    result = client.request(
+                        "GET", "/similarweb/website/similar-sites",
+                        params={
+                            "domain": domain,
+                            "start_date": ss_start,
+                            "end_date": ss_end,
+                            "limit": 20,
+                            "country": sw_country,
+                        },
+                    )
+                except AisaApiError as e:
+                    if not any(marker in e.message for marker in ("101", "120", "Dates not in range", "span exactly")):
+                        raise
+                    ss_end = shift_month_str(ss_end, 1)
+                    ss_start = shift_month_str(ss_end, -2)
+                    result = client.request(
+                        "GET", "/similarweb/website/similar-sites",
+                        params={
+                            "domain": domain,
+                            "start_date": ss_start,
+                            "end_date": ss_end,
+                            "limit": 20,
+                            "country": sw_country,
+                        },
+                    )
             elif metric == "technologies":
                 result = client.request(
                     "GET", "/similarweb/website/technologies",

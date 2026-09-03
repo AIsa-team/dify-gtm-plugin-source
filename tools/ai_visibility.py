@@ -8,6 +8,17 @@ from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncat
 
 _SOURCES = ("chatgpt", "gemini", "perplexity", "google_ai_mode", "google_search")
 
+# Per the AIsa contract: Google-type sources (google_search AND google_ai_mode)
+# take 'query'; the AI engines take 'prompt', with per-engine length caps.
+_PROMPT_CAPS = {"chatgpt": 4000, "gemini": 8000}
+
+
+def _prompt_field(source: str, prompt: str) -> dict:
+    if source in ("google_search", "google_ai_mode"):
+        return {"query": prompt}
+    cap = _PROMPT_CAPS.get(source)
+    return {"prompt": prompt[:cap] if cap else prompt}
+
 
 class AiVisibilityTool(Tool):
     """AI answer-engine visibility (GEO/AEO) via Oxylabs — see how AI engines answer a prompt."""
@@ -27,11 +38,7 @@ class AiVisibilityTool(Tool):
             return
 
         body: dict[str, Any] = {"source": source, "parse": True}
-        # AI engines take 'prompt'; classic Google search takes 'query'.
-        if source == "google_search":
-            body["query"] = prompt
-        else:
-            body["prompt"] = prompt
+        body.update(_prompt_field(source, prompt))
         if geo_location:
             body["geo_location"] = geo_location
 

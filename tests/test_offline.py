@@ -174,14 +174,38 @@ def test_tool_helpers():
     stub_dify()
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        "find_prospects", os.path.join(ROOT, "tools", "find_prospects.py")
-    )
-    fp = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(fp)
+    def load(name):
+        spec = importlib.util.spec_from_file_location(
+            name, os.path.join(ROOT, "tools", f"{name}.py")
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    fp = load("find_prospects")
     check("title splitting", fp._split("CEO, VP Marketing") == ["CEO", "VP Marketing"])
     check("size ranges to Apollo format", fp._size_ranges("11-50, 51-200") == ["11,50", "51,200"])
     check("garbage size ranges dropped", fp._size_ranges("big companies") == [])
+
+    av = load("ai_visibility")
+    check("google_ai_mode uses query field", av._prompt_field("google_ai_mode", "x") == {"query": "x"})
+    check("google_search uses query field", av._prompt_field("google_search", "x") == {"query": "x"})
+    check("chatgpt uses prompt, capped at 4000",
+          av._prompt_field("chatgpt", "p" * 5000) == {"prompt": "p" * 4000})
+    check("perplexity uses prompt, uncapped",
+          av._prompt_field("perplexity", "hello") == {"prompt": "hello"})
+
+    ti = load("traffic_intel")
+    check("latest month from snapshot meta",
+          ti._latest_published_month({"meta": {"end_date": "2026-07"}, "data": {}}) == "2026-07")
+    check("latest month falls back to data.month",
+          ti._latest_published_month({"data": {"month": "2026-07"}}) == "2026-07")
+    check("latest month empty on junk", ti._latest_published_month({"x": 1}) == "")
+
+    from utils.gtm_common import shift_month_str
+    check("month shift back", shift_month_str("2026-07", -2) == "2026-05")
+    check("month shift across year", shift_month_str("2026-01", -2) == "2025-11")
+    check("month shift forward", shift_month_str("2026-12", 1) == "2027-01")
 
 
 def test_yaml_wiring():

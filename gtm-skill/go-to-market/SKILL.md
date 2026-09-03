@@ -39,9 +39,17 @@ all backed by the AIsa unified API (one key, one bill).
    their source tool; interpretation is labeled as yours.
 3. **Timestamp everything.** Traffic data lags ~2 months (say which months you
    got). Social and AI-visibility results are live (say "as of today").
-4. **Mind the meter.** Every call spends API credit. Batch keywords into one
-   `search_volume` call (up to 100, comma-separated) instead of looping.
-   Plan the minimal call set before you start; typically 3–8 calls per playbook.
+4. **Mind the meter.** Every call spends API credit — and costs vary 450x:
+   | Cost | Calls |
+   |---|---|
+   | Free | traffic_intel overview, trend |
+   | ~$0.001–0.01 | ai_visibility, social_listening, web_research, keyword suggestions/volume, prospects |
+   | ~$0.02–0.10 | find_creators, similarweb dated metrics, domain keywords |
+   | **$0.36–0.45** | **domain_competitors, keyword_difficulty** — use once, batched, never per-keyword |
+   Batch keywords into one `search_volume` call (up to 100, comma-separated)
+   and one `keyword_difficulty` call (up to 20, semicolon-separated). Plan the
+   minimal call set before starting; typically 3–8 calls per playbook.
+   `ai_visibility` is cheap but SLOW (~2 min/engine) — warn about time, not cost.
 5. **Stop at read-only.** You research and recommend. You never post, send
    outreach, or contact anyone.
 
