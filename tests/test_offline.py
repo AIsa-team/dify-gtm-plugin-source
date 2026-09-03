@@ -156,6 +156,58 @@ def test_request_headers():
         urllib.request.urlopen = original
 
 
+def test_contract_fallback():
+    import utils.aisa_client as m
+
+    c = m.AisaClient("k")
+    # registry-driven minimal subsets
+    check("minimal params drops optionals",
+          c._minimal_params("/semrush/keyword-overview", {"phrase": "x", "database": "us"})
+          == {"phrase": "x"})
+    check("no fallback when nothing to drop",
+          c._minimal_params("/semrush/keyword-overview", {"phrase": "x"}) is None)
+    check("no fallback for unregistered endpoints (Apollo searches)",
+          c._minimal_params("/apollo/mixed_people/api_search", {"per_page": 10}) is None)
+
+    # end-to-end: contract 400 on first send, success on required-only retry
+    calls = []
+
+    def fake_once(method, endpoint, params=None, data=None, *a, **kw):
+        calls.append(dict(params or {}))
+        if "database" in (params or {}):
+            raise m.AisaApiError("400", "request does not match the endpoint contract")
+        return {"results": [1]}
+
+    c._request_once = fake_once
+    out = c.request("GET", "/semrush/keyword-overview",
+                    params={"phrase": "seotools", "database": "us"})
+    check("fallback retried with required-only params",
+          len(calls) == 2 and calls[1] == {"phrase": "seotools"})
+    check("fallback annotates the result",
+          out["_contract_fallback"]["dropped_params"] == ["database"])
+
+    def fake_auth_fail(*a, **kw):
+        raise m.AisaAuthError("401", "invalid api key")
+
+    c._request_once = fake_auth_fail
+    try:
+        c.request("GET", "/semrush/keyword-overview",
+                  params={"phrase": "x", "database": "us"})
+        raise AssertionError("auth error swallowed")
+    except m.AisaAuthError:
+        check("non-contract errors are not retried", True)
+
+
+def test_audit_wiring():
+    import json as _json
+    baseline = _json.load(open(os.path.join(ROOT, "tests", "contracts_baseline.json")))
+    check("baseline covers 36 tools", len(baseline) == 36, f"got {len(baseline)}")
+    sys.path.insert(0, os.path.join(ROOT, "tests"))
+    import contract_audit
+    check("audit SENT map covers every baseline tool",
+          set(contract_audit.SENT) == set(baseline))
+
+
 def test_gtm_common():
     from utils.gtm_common import (
         default_month_range, dfs_location_name, normalize_country, semrush_database,
@@ -281,8 +333,8 @@ def test_readme_rules():
 
 if __name__ == "__main__":
     for fn in [test_client_errors, test_delimited_text, test_truncation_and_summary,
-               test_request_headers, test_gtm_common, test_tool_helpers,
-               test_yaml_wiring, test_readme_rules]:
+               test_request_headers, test_contract_fallback, test_audit_wiring,
+               test_gtm_common, test_tool_helpers, test_yaml_wiring, test_readme_rules]:
         print(fn.__name__)
         fn()
     print(f"\nAll {PASSED} checks passed.")

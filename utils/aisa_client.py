@@ -71,6 +71,44 @@ def _classify_and_raise(code: str, message: str) -> None:
     raise AisaApiError(code, message)
 
 
+# Required query params per endpoint (from AIsa's audited tool contracts).
+# Used for the contract-drift fallback: when the gateway rejects a request as
+# "does not match the endpoint contract", retry once with required params only
+# — this self-heals the drift class where a documented optional param stops
+# being accepted (as happened to semrush keyword-overview's 'database').
+# Endpoints whose optionals carry the query semantics (Apollo searches) are
+# deliberately ABSENT: dropping their filters would return billed garbage.
+_REQUIRED_PARAMS = {
+    "/semrush/keyword-overview": {"phrase"},
+    "/semrush/keyword-difficulty": {"phrase"},
+    "/semrush/domain-organic-keywords": {"domain", "database"},
+    "/semrush/domain-organic-competitors": {"domain", "database"},
+    "/semrush/backlinks-overview": {"target"},
+    "/similarweb/website-traffic-snapshot": {"domain"},
+    "/similarweb/website-traffic-trend": {"domain"},
+    "/similarweb/website/traffic-engagement": {"domain", "start_date", "end_date", "metrics"},
+    "/similarweb/website/ranking": {"domain", "start_date", "end_date"},
+    "/similarweb/website-top-geographies": {"domain"},
+    "/similarweb/website/demographics": {"domain", "start_date", "end_date", "granularity"},
+    "/similarweb/website/similar-sites": {"domain", "start_date", "end_date", "limit"},
+    "/similarweb/website/technologies": {"domain", "start_date", "end_date", "granularity", "limit"},
+    "/similarweb/website/popular-pages": {"domain", "start_date", "end_date", "limit"},
+    "/ahrefs/site-explorer/domain-rating": {"target", "date"},
+    "/ahrefs/site-explorer/metrics": {"target", "date"},
+    "/twitter/tweet/advanced_search": {"query", "queryType"},
+    "/twitter/user/info": {"userName"},
+    "/reddit/search": {"query"},
+    "/reddit/subreddit/search": {"subreddit"},
+    "/instagram/reels/search": {"query"},
+    "/instagram/profile": {"handle"},
+    "/pinterest/search": {"query"},
+    "/youtube/search": {"engine", "q"},
+    "/apollo/organizations/enrich": {"domain"},
+}
+
+_CONTRACT_MISMATCH_MARKER = "does not match the endpoint contract"
+
+
 class AisaClient:
     """Minimal AIsa API client (stdlib only — no extra dependencies)."""
 
@@ -88,6 +126,58 @@ class AisaClient:
     # ------------------------------------------------------------------ core
 
     def request(
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        timeout: int = 100,
+        retries: int = 1,
+        retry_delay_seconds: int = 3,
+        base_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Make a request; on a gateway contract-mismatch, self-heal once.
+
+        If the gateway rejects the request shape and the endpoint has a known
+        required-params set, retry with required params only and annotate the
+        result with '_contract_fallback' so callers can disclose the drift."""
+        try:
+            return self._request_once(
+                method, endpoint, params, data, timeout, retries,
+                retry_delay_seconds, base_url,
+            )
+        except AisaApiError as e:
+            minimal = self._minimal_params(endpoint, params)
+            if minimal is None or _CONTRACT_MISMATCH_MARKER not in e.message:
+                raise
+            result = self._request_once(
+                method, endpoint, minimal, data, timeout, retries,
+                retry_delay_seconds, base_url,
+            )
+            if isinstance(result, dict):
+                dropped = sorted(set(params or {}) - set(minimal))
+                result["_contract_fallback"] = {
+                    "dropped_params": dropped,
+                    "note": "Endpoint contract drifted upstream; retried with "
+                            "required parameters only.",
+                }
+            return result
+
+    @staticmethod
+    def _minimal_params(
+        endpoint: str, params: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Required-only param subset, or None when fallback doesn't apply."""
+        required = _REQUIRED_PARAMS.get(endpoint)
+        if not required or not params:
+            return None
+        minimal = {k: v for k, v in params.items() if k in required}
+        sent = {k for k, v in params.items() if v is not None}
+        if sent == set(minimal):
+            return None  # nothing to drop — retry would be identical
+        return minimal
+
+    def _request_once(
         self,
         method: str,
         endpoint: str,

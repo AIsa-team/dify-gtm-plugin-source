@@ -1,0 +1,564 @@
+{
+ "get_ahrefs_domain_rating": {
+  "args_schema_sha256": "2fce33aeeba3374f4a95815e4990b00c5fcf05ef67d1ef6d5abc0007c582a475",
+  "description_sha256": "76bcc06d8696d4f646789a8712e7cdca01d657bc11e241ba03dd37a6fc4c3e92",
+  "properties": [
+   "date",
+   "target"
+  ],
+  "required": [
+   "date",
+   "target"
+  ]
+ },
+ "get_ahrefs_site_metrics": {
+  "args_schema_sha256": "2fce33aeeba3374f4a95815e4990b00c5fcf05ef67d1ef6d5abc0007c582a475",
+  "description_sha256": "0473b3390c5be93fa7ed55127543dfe92ca0ed9efa498053857e269a70509368",
+  "properties": [
+   "date",
+   "target"
+  ],
+  "required": [
+   "date",
+   "target"
+  ]
+ },
+ "get_apollo_organizations_enrich": {
+  "args_schema_sha256": "043696ff4bdf46e9467d0f8a8f70bffa747129c575287d03cf6346298f270a0d",
+  "description_sha256": "1b336c8245f789787248e23800095e05bb34d71a84302850772f96814e2fd16a",
+  "properties": [
+   "domain"
+  ],
+  "required": [
+   "domain"
+  ]
+ },
+ "get_instagram_profile": {
+  "args_schema_sha256": "ab074edbba5f5c018b96bc0c64bb0b587a494aa35e55939ce090cc7207ed546d",
+  "description_sha256": "bcf29c6747730c0fa7b0b9294d28e0d53c2981ef4eacffb6d5cd270d4ac6e614",
+  "properties": [
+   "handle",
+   "trim"
+  ],
+  "required": [
+   "handle"
+  ]
+ },
+ "get_instagram_reels_search": {
+  "args_schema_sha256": "1c46e5f5886040188e296f1cc4da7b6194acb30bd16897f35fc542747d808914",
+  "description_sha256": "af5b91179cee200a761cf71760775f1222c8a54f9f07d2c78897c0c8f83aa2fa",
+  "properties": [
+   "date_posted",
+   "page",
+   "query"
+  ],
+  "required": [
+   "query"
+  ]
+ },
+ "get_pinterest_search": {
+  "args_schema_sha256": "f0e73ee5528e3e10dea10f872190f8a62587039cae4d9b05d06164aa576624ed",
+  "description_sha256": "344183d82aaf31f05f309c22710be0ecb255fe479d3127e6fae873c0cae46e91",
+  "properties": [
+   "cursor",
+   "query",
+   "trim"
+  ],
+  "required": [
+   "query"
+  ]
+ },
+ "get_reddit_search": {
+  "args_schema_sha256": "6b621db2e339343592bd11a6b045459d5a33041f1da94071699f930310245a8c",
+  "description_sha256": "430c3f666d3dc6efa306d88120256bce5d1e7f5107733864a7d27b2a588c76d4",
+  "properties": [
+   "after",
+   "query",
+   "sort",
+   "timeframe",
+   "trim"
+  ],
+  "required": [
+   "query"
+  ]
+ },
+ "get_reddit_subreddit_search": {
+  "args_schema_sha256": "1d2234127e6d88c8c428498ccb6329feca05d4f10bbfa23616925469992cef94",
+  "description_sha256": "2dc6e1468a9cfc9f7139fa6311fb33a67e9200cd05ac2d267428bcba06cae9c7",
+  "properties": [
+   "cursor",
+   "query",
+   "sort",
+   "subreddit",
+   "timeframe"
+  ],
+  "required": [
+   "subreddit"
+  ]
+ },
+ "get_semrush_backlinks_overview": {
+  "args_schema_sha256": "66a3801b3590daec312e836da133294cf6b8a6e084897c6f060ade8958d8c7e2",
+  "description_sha256": "978aca4e4bc95e4cb155c653886d006b4f6e95c5c312e967277e997fc304598c",
+  "properties": [
+   "target"
+  ],
+  "required": [
+   "target"
+  ]
+ },
+ "get_semrush_domain_organic_keywords": {
+  "args_schema_sha256": "1da67f8e1d6ba3f3c29c52b5fb518d1599db008f25c6d37f8aa1b9c3c30b2473",
+  "description_sha256": "201ac53f9d53455d18cc5173d61f355dcf2408b4ae6ed4d5f7afc136186fae39",
+  "properties": [
+   "database",
+   "domain"
+  ],
+  "required": [
+   "database",
+   "domain"
+  ]
+ },
+ "get_semrush_keyword_difficulty": {
+  "args_schema_sha256": "b0074a3eb2bfbf1e1f528eaaf43c21fa72fd7b930b5b78a9ba52d4e4be72997c",
+  "description_sha256": "ca9157af85cb3d1b43ccff879690ab068bba1c1499a1e44cc245b0a8db0abcb2",
+  "properties": [
+   "database",
+   "phrase"
+  ],
+  "required": [
+   "phrase"
+  ]
+ },
+ "get_semrush_keyword_overview": {
+  "args_schema_sha256": "5af0dc3b8a7033f3cdfa7f13ef0b8d4031e9a601d133225a11f2296fdc35778c",
+  "description_sha256": "94ae4cdf9362000103bd03ae313c1a1e7dbf217e66ef5889f7adf2f83e0d6d52",
+  "properties": [
+   "database",
+   "phrase"
+  ],
+  "required": [
+   "phrase"
+  ]
+ },
+ "get_semrush_organic_competitors": {
+  "args_schema_sha256": "1da67f8e1d6ba3f3c29c52b5fb518d1599db008f25c6d37f8aa1b9c3c30b2473",
+  "description_sha256": "fc38f34cf0b28d3e272310c507f3e210c2faba439cb304dbe059efadcd34b27e",
+  "properties": [
+   "database",
+   "domain"
+  ],
+  "required": [
+   "database",
+   "domain"
+  ]
+ },
+ "get_twitter_tweet_advanced_search": {
+  "args_schema_sha256": "388aa3eae79a3e1038cf9e1c904bd0f7f5419281e8fb5734f6c52aff82c803fa",
+  "description_sha256": "9ccca98bdc6f7ee23b08bbe2b9225163e8fd5178e4ba77960879f05374f15a6a",
+  "properties": [
+   "cursor",
+   "query",
+   "queryType"
+  ],
+  "required": [
+   "query",
+   "queryType"
+  ]
+ },
+ "get_twitter_user_info": {
+  "args_schema_sha256": "413f644fd6b5b351cb255f43eb08321e4147d3078da3c128eba0929a4935839e",
+  "description_sha256": "ddaa35682cff1dee7428ad6e11b7a7bcf986f11278bb9b81ca598bdedc39b530",
+  "properties": [
+   "userName"
+  ],
+  "required": [
+   "userName"
+  ]
+ },
+ "get_youtube_search": {
+  "args_schema_sha256": "44b0167d79ecfef39031325a5a92cfcf890525952cba46959ca0f1d6eba97ec5",
+  "description_sha256": "a0760826f795c2dd2055f5f2431ae24dec968b9c574464e09aab786ccbb14054",
+  "properties": [
+   "engine",
+   "gl",
+   "hl",
+   "q",
+   "sp"
+  ],
+  "required": [
+   "engine",
+   "q"
+  ]
+ },
+ "post_apollo_mixed_companies_search": {
+  "args_schema_sha256": "7fc1f0bb6a8172a2c64281f68c020dfad712d39752a651eba5a7b2e72b33eda7",
+  "description_sha256": "fe3b74073d163b99aa29a9a59929095b792fa660fb5012e00c60013c8717429b",
+  "properties": [
+   "currently_using_any_of_technology_uids[]",
+   "latest_funding_amount_range[max]",
+   "latest_funding_amount_range[min]",
+   "latest_funding_date_range[max]",
+   "latest_funding_date_range[min]",
+   "organization_ids[]",
+   "organization_job_locations[]",
+   "organization_job_posted_at_range[max]",
+   "organization_job_posted_at_range[min]",
+   "organization_locations[]",
+   "organization_not_locations[]",
+   "organization_num_employees_ranges[]",
+   "organization_num_jobs_range[max]",
+   "organization_num_jobs_range[min]",
+   "page",
+   "per_page",
+   "q_organization_domains_list[]",
+   "q_organization_job_titles[]",
+   "q_organization_keyword_tags[]",
+   "q_organization_name",
+   "revenue_range[max]",
+   "revenue_range[min]",
+   "total_funding_range[max]",
+   "total_funding_range[min]"
+  ],
+  "required": []
+ },
+ "post_apollo_mixed_people_api_search": {
+  "args_schema_sha256": "6a8c5e52054057095d1f70c86767c4856ff59620a9f81a8d8d51070b6c4f2fb8",
+  "description_sha256": "06bcd88f3c3f730acc535f651e8bba62eaf4c139ea1e22e0f3011b15eb670e37",
+  "properties": [
+   "contact_email_status[]",
+   "currently_not_using_any_of_technology_uids[]",
+   "currently_using_all_of_technology_uids[]",
+   "currently_using_any_of_technology_uids[]",
+   "include_similar_titles",
+   "organization_ids[]",
+   "organization_job_locations[]",
+   "organization_job_posted_at_range[max]",
+   "organization_job_posted_at_range[min]",
+   "organization_locations[]",
+   "organization_num_employees_ranges[]",
+   "organization_num_jobs_range[max]",
+   "organization_num_jobs_range[min]",
+   "page",
+   "per_page",
+   "person_locations[]",
+   "person_seniorities[]",
+   "person_titles[]",
+   "q_keywords",
+   "q_organization_domains_list[]",
+   "q_organization_job_titles[]",
+   "revenue_range[max]",
+   "revenue_range[min]"
+  ],
+  "required": []
+ },
+ "post_dataforseo_keywords_gads_search_volume_live": {
+  "args_schema_sha256": "f57ec441e238f6c02d75444029d7b116f27c684328067ac28516558f0be22430",
+  "description_sha256": "d93827b837a66d824b913b26564aff445ac60f5617f4aff7b568c7e54740745a",
+  "properties": [
+   "body"
+  ],
+  "required": [
+   "body"
+  ]
+ },
+ "post_dataforseo_labs_google_keyword_suggestions_live": {
+  "args_schema_sha256": "f4d26f0471dc60ad86d64e4d0740c4f651ba05af456d05e20b816e30fe93d97b",
+  "description_sha256": "a40923573c86adb2861bfebdfcea65e0dc8ec34eabe37bb68c63bd3a6d12fd05",
+  "properties": [
+   "body"
+  ],
+  "required": [
+   "body"
+  ]
+ },
+ "post_oxylabs_ai_search": {
+  "args_schema_sha256": "4d6cd7f7178accdb210aef8efb77edf5d5005520de01a81301ae17ad97eb3130",
+  "description_sha256": "5fbc18c83eee10ac63bbc22e235ef3e334fe685ff296250812db08e203bbd8d7",
+  "properties": [
+   "geo_location",
+   "parse",
+   "prompt",
+   "query",
+   "render",
+   "search",
+   "source"
+  ],
+  "required": [
+   "source"
+  ]
+ },
+ "post_tavily_crawl": {
+  "args_schema_sha256": "cc8dc8a79cbaa713e41b9d7a9f5beeac219b807b03a48c42eef4322f291496d4",
+  "description_sha256": "31a29b0ab1db6312a68f254cbaaf57d7f4657e330261a6439cb83792029c24ae",
+  "properties": [
+   "allow_external",
+   "chunks_per_source",
+   "exclude_domains",
+   "exclude_paths",
+   "extract_depth",
+   "format",
+   "include_favicon",
+   "include_images",
+   "include_usage",
+   "instructions",
+   "limit",
+   "max_breadth",
+   "max_depth",
+   "select_domains",
+   "select_paths",
+   "timeout",
+   "url"
+  ],
+  "required": [
+   "url"
+  ]
+ },
+ "post_tavily_extract": {
+  "args_schema_sha256": "77aea356d46ac9ab25e6c66657994f77fea87bab5d673897959ae8395eb58725",
+  "description_sha256": "b85c8710b4416bee8c972b308798ba471f9c4a5d67f96c645564c8cbba8453d3",
+  "properties": [
+   "chunks_per_source",
+   "extract_depth",
+   "format",
+   "include_favicon",
+   "include_images",
+   "include_usage",
+   "query",
+   "timeout",
+   "urls"
+  ],
+  "required": [
+   "urls"
+  ]
+ },
+ "post_tavily_map": {
+  "args_schema_sha256": "01c1bd3dfbdc6fea158fd0adb5e21e3dd1e97160362df1cfc1887c0acc04b5bd",
+  "description_sha256": "4694af26084ecda82a979a6deb5237110202804f67a6038dc4d2070afa034e84",
+  "properties": [
+   "allow_external",
+   "exclude_domains",
+   "exclude_paths",
+   "include_usage",
+   "instructions",
+   "limit",
+   "max_breadth",
+   "max_depth",
+   "select_domains",
+   "select_paths",
+   "timeout",
+   "url"
+  ],
+  "required": [
+   "url"
+  ]
+ },
+ "post_tavily_search": {
+  "args_schema_sha256": "3841d744671e63669d7576c503712f31b92df5baabbe597bf8b9b5e5c4f34bef",
+  "description_sha256": "f3ed9ba90ce25134b75b398b94202faaf12a5a1cc21a5af00072ac0e65dff82f",
+  "properties": [
+   "auto_parameters",
+   "chunks_per_source",
+   "country",
+   "end_date",
+   "exclude_domains",
+   "include_answer",
+   "include_domains",
+   "include_favicon",
+   "include_image_descriptions",
+   "include_images",
+   "include_raw_content",
+   "include_usage",
+   "max_results",
+   "query",
+   "safe_search",
+   "search_depth",
+   "start_date",
+   "time_range",
+   "topic"
+  ],
+  "required": [
+   "query"
+  ]
+ },
+ "post_waveinflu_email_lookup": {
+  "args_schema_sha256": "b71523ab3b9a6e8a90d775f80601a3933fde4093cd84ac91db6d2832127fa38d",
+  "description_sha256": "62b9e5671ed2582b36e8a3ccefc89a339381f04cb839581bb407a6f816c531b3",
+  "properties": [
+   "url"
+  ],
+  "required": [
+   "url"
+  ]
+ },
+ "post_waveinflu_similar_creators": {
+  "args_schema_sha256": "8b7427377f186853a293ad46997ab946da7a88e1818ecd9d24f93b8de6e327e4",
+  "description_sha256": "0e648115d70b38864cbf8606a0a1f51c838b6a75189f30cfce933b4b136e71a8",
+  "properties": [
+   "contentDirection",
+   "filters",
+   "limit",
+   "platform",
+   "seedProfileUrl"
+  ],
+  "required": [
+   "platform"
+  ]
+ },
+ "similarwebDemographics": {
+  "args_schema_sha256": "8afc900cb41b97d8a969db975c865bfee30840d30e3f3a3c91f2c6ec5b92b35b",
+  "description_sha256": "72decb1f5a6f92a57ab59a47142ab9af1c2c563f534ae7b344509f55ecbe3410",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "format",
+   "granularity",
+   "main_domain_only",
+   "start_date",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "granularity",
+   "start_date"
+  ]
+ },
+ "similarwebPopularPages": {
+  "args_schema_sha256": "b1b445e91f0c1917ded1d7827d54cfec5cb263606025fba0683e3b4e4c50e226",
+  "description_sha256": "a6f77422eba80f137f58412a55990c2d670f664f7094408525baa888a8661f2a",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "limit",
+   "main_domain_only",
+   "offset",
+   "start_date",
+   "traffic_source",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "limit",
+   "start_date"
+  ]
+ },
+ "similarwebRanking": {
+  "args_schema_sha256": "60119da7571f0cc07703220e2f4e99cb6febe195f61b8346b51e0e5ea7c09288",
+  "description_sha256": "8dc1b89bc8088a626cbfaddcf083ca5fbbe059745006f6bbff2ba6721f04b6bd",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "main_domain_only",
+   "start_date",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "start_date"
+  ]
+ },
+ "similarwebSimilarSites": {
+  "args_schema_sha256": "96aee8a2cb7b8ff53f4dd2928c3fd447386be3d189b7cab866b784716fd3b963",
+  "description_sha256": "5148838f47df32d01f04aabe706bbc65387570058b6869fd8b2e53fe3c6ea17f",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "limit",
+   "main_domain_only",
+   "offset",
+   "start_date",
+   "traffic_source",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "limit",
+   "start_date"
+  ]
+ },
+ "similarwebTechnologies": {
+  "args_schema_sha256": "dea2efb717904023121221edb19a082c442f6b2b3885d17a847cff131997d075",
+  "description_sha256": "3df334470776d020daa4f02538cd5d3dddc93f6f33b52214da9753fae9d1ebc4",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "format",
+   "granularity",
+   "limit",
+   "main_domain_only",
+   "start_date",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "granularity",
+   "limit",
+   "start_date"
+  ]
+ },
+ "similarwebTrafficEngagement": {
+  "args_schema_sha256": "b24976c42b61a8344f4190a8d2486407f8c51b0570f17276742804a98af1e567",
+  "description_sha256": "2c7feedbc88463ee287cd768508dfe7775dc3bac5a615a6d9c43dc76be9b87e3",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "main_domain_only",
+   "metrics",
+   "mtd",
+   "start_date",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "metrics",
+   "start_date"
+  ]
+ },
+ "similarwebWebsiteTopGeographies": {
+  "args_schema_sha256": "72f133153b40701b6d89317645e180478b73dd2cbd31d7623e7d5656a976736e",
+  "description_sha256": "6d0a39751ae7481efd87c7f427b4f1c99ac7d0cb53db5b7d0ac4aaf918d2cc39",
+  "properties": [
+   "domain"
+  ],
+  "required": [
+   "domain"
+  ]
+ },
+ "similarwebWebsiteTrafficSnapshot": {
+  "args_schema_sha256": "f2cfd4016ed9ef55b8de04afa129628c67498cb7bb537a5b5d393a8f9102428b",
+  "description_sha256": "3c5782882c099f5d261fd1dfef253930316db425d4f489e4cef9a5e01bf1040b",
+  "properties": [
+   "country",
+   "domain"
+  ],
+  "required": [
+   "domain"
+  ]
+ },
+ "similarwebWebsiteTrafficTrend": {
+  "args_schema_sha256": "f2cfd4016ed9ef55b8de04afa129628c67498cb7bb537a5b5d393a8f9102428b",
+  "description_sha256": "332d4ed1827dd56b239ebfb28740b85761f287614d1777d2d5745dc2ef9763fb",
+  "properties": [
+   "country",
+   "domain"
+  ],
+  "required": [
+   "domain"
+  ]
+ }
+}
