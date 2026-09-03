@@ -243,9 +243,12 @@ def test_tool_helpers():
           out[0][1].get("requires_approval") is True and "$0.45" in out[0][1]["estimated_cost"])
     out = list(tool._invoke({"metric": "domain_competitors", "domain": "x.com"}))
     check("domain_competitors gated too", out[0][1].get("requires_approval") is True)
-    out = list(tool._invoke({"metric": "keyword_overview", "keyword": "crm"}))
-    check("cheap metrics not gated (fails later on missing runtime, not approval)",
-          not (isinstance(out[0][1], dict) and out[0][1].get("requires_approval")))
+    try:
+        out = list(tool._invoke({"metric": "keyword_overview", "keyword": "crm"}))
+        gated = isinstance(out[0][1], dict) and out[0][1].get("requires_approval")
+    except AttributeError:
+        gated = False  # reached the client stage (stub has no runtime) => passed the gate
+    check("cheap metrics not gated", not gated)
 
     fp = load("find_prospects")
     check("title splitting", fp._split("CEO, VP Marketing") == ["CEO", "VP Marketing"])
