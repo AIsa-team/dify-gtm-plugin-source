@@ -52,7 +52,11 @@ class AiVisibilityTool(Tool):
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
             # Answer engines render a full session upstream; allow extra time.
-            result = client.request("POST", "/oxylabs/ai-search", data=body, timeout=110)
+            # retries=0: a second 110s attempt cannot fit inside the plugin
+            # runtime's request cap — fail honestly instead.
+            result = client.request(
+                "POST", "/oxylabs/ai-search", data=body, timeout=110, retries=0
+            )
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return

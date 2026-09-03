@@ -157,6 +157,34 @@ def test_request_headers():
         c.credits_balance()
         check("credits balance uses /v1 account base",
               captured["url"] == "https://api.aisa.one/v1/credits/balance")
+
+        # raw socket timeouts must become the normal error envelope
+        attempts = {"n": 0}
+
+        def timeout_urlopen(req, timeout=None):
+            attempts["n"] += 1
+            raise TimeoutError("The read operation timed out")
+
+        urllib.request.urlopen = timeout_urlopen
+        from utils.aisa_client import AisaApiError as _E
+        try:
+            c.request("POST", "/oxylabs/ai-search", data={"source": "chatgpt"},
+                      retries=0, retry_delay_seconds=0)
+            raise AssertionError("timeout not converted")
+        except _E as e:
+            check("read timeout -> AisaApiError TIMEOUT", e.code == "TIMEOUT")
+        check("retries=0 means exactly one attempt", attempts["n"] == 1)
+
+        def oserror_urlopen(req, timeout=None):
+            raise ConnectionResetError("peer reset")
+
+        urllib.request.urlopen = oserror_urlopen
+        try:
+            c.request("GET", "/youtube/search", params={"engine": "youtube", "q": "x"},
+                      retries=0, retry_delay_seconds=0)
+            raise AssertionError("oserror not converted")
+        except _E as e:
+            check("raw OSError -> NETWORK_ERROR envelope", e.code == "NETWORK_ERROR")
     finally:
         urllib.request.urlopen = original
 

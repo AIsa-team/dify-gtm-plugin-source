@@ -254,6 +254,21 @@ class AisaClient:
                     time.sleep(retry_delay_seconds)
                     continue
                 last_error = AisaApiError("NETWORK_ERROR", str(e.reason))
+            except (TimeoutError, OSError) as e:
+                # Timeouts during the response read escape urlopen unwrapped
+                # (only connection-phase errors become URLError) — convert to
+                # the normal error envelope instead of crashing the invocation.
+                if attempt < attempts:
+                    time.sleep(retry_delay_seconds)
+                    continue
+                if isinstance(e, TimeoutError):
+                    last_error = AisaApiError(
+                        "TIMEOUT",
+                        f"The upstream did not respond within {timeout}s. "
+                        "Try again, or switch to a faster source.",
+                    )
+                else:
+                    last_error = AisaApiError("NETWORK_ERROR", f"{type(e).__name__}: {e}")
             except json.JSONDecodeError:
                 last_error = AisaApiError(
                     "BAD_RESPONSE", "AIsa API returned a non-JSON response."
