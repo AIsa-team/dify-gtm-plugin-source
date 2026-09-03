@@ -101,6 +101,28 @@ parameters:
       zh_Hans: "结束月份 YYYY-MM。默认为当前月份约 2 个月前。"
     llm_description: "Optional end month in YYYY-MM format. Leave empty for a sensible default."
     form: llm
+  - name: approval_threshold
+    type: number
+    required: false
+    label:
+      en_US: "Approval threshold (USD)"
+      zh_Hans: "审批阈值（美元）"
+    human_description:
+      en_US: "Calls costing at least this amount require approved=true (default 0.30). Pass the user's configured threshold."
+      zh_Hans: "费用达到该金额的调用需要 approved=true（默认 0.30）。请传入用户配置的阈值。"
+    llm_description: "Price gate in USD: calls costing at least this amount are refused until approved=true. Pass the user's configured threshold verbatim on every call; omit for the default (0.30)."
+    form: llm
+  - name: approved
+    type: boolean
+    required: false
+    label:
+      en_US: "Cost approved"
+      zh_Hans: "已批准费用"
+    human_description:
+      en_US: "Required for calls at or above the approval threshold. Without it, the tool returns an approval request instead of running."
+      zh_Hans: "费用达到审批阈值的调用必需。未设置时工具返回审批请求而不执行。"
+    llm_description: "Cost-approval flag for calls at or above the approval threshold. Set true ONLY after the user explicitly approved the cost (in conversation or via an approval form). Never set it on your own initiative."
+    form: llm
 extra:
   python:
     source: tools/traffic_intel.py

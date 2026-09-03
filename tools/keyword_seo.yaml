@@ -81,16 +81,27 @@ parameters:
       zh_Hans: "区域数据库的两位国家代码（默认 us）。"
     llm_description: "Optional two-letter country code (us, uk, de, jp, ...). Default 'us'."
     form: llm
+  - name: approval_threshold
+    type: number
+    required: false
+    label:
+      en_US: "Approval threshold (USD)"
+      zh_Hans: "审批阈值（美元）"
+    human_description:
+      en_US: "Calls costing at least this amount require approved=true (default 0.30). Pass the user's configured threshold."
+      zh_Hans: "费用达到该金额的调用需要 approved=true（默认 0.30）。请传入用户配置的阈值。"
+    llm_description: "Price gate in USD: calls costing at least this amount are refused until approved=true. Pass the user's configured threshold verbatim on every call; omit for the default (0.30)."
+    form: llm
   - name: approved
     type: boolean
     required: false
     label:
-      en_US: "Premium cost approved"
-      zh_Hans: "已批准高价调用"
+      en_US: "Cost approved"
+      zh_Hans: "已批准费用"
     human_description:
-      en_US: "Required for premium metrics: keyword_difficulty ($0.45/call) and domain_competitors ($0.36/call). Without it, the tool returns an approval request instead of running."
-      zh_Hans: "高价指标必需：keyword_difficulty（$0.45/次）与 domain_competitors（$0.36/次）。未设置时工具返回审批请求而不执行。"
-    llm_description: "Cost-approval flag for the premium metrics keyword_difficulty ($0.45) and domain_competitors ($0.36). Set true ONLY after the user explicitly approved the cost in this conversation, or when the app context pre-approves premium calls. Never set it on your own initiative."
+      en_US: "Required for calls at or above the approval threshold. Without it, the tool returns an approval request instead of running."
+      zh_Hans: "费用达到审批阈值的调用必需。未设置时工具返回审批请求而不执行。"
+    llm_description: "Cost-approval flag for calls at or above the approval threshold. Set true ONLY after the user explicitly approved the cost (in conversation or via an approval form). Never set it on your own initiative."
     form: llm
 extra:
   python:

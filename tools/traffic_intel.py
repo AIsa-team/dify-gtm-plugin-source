@@ -5,7 +5,7 @@ from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
 from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
-from utils.gtm_common import default_month_range, shift_month_str, today_str
+from utils.gtm_common import approval_notice, default_month_range, shift_month_str, today_str
 
 
 def _latest_published_month(snapshot: Any) -> str:
@@ -103,6 +103,13 @@ class TrafficIntelTool(Tool):
                 {"error": {"code": "INVALID_INPUT",
                            "message": f"Unknown metric '{metric}'. Use one of: {', '.join(_METRICS)}."}}
             )
+            return
+
+        # Cost gate — refuses BEFORE any API call, so this response is free.
+        notice = approval_notice("traffic_intel", metric, tool_parameters)
+        if notice:
+            yield self.create_json_message(notice)
+            yield self.create_text_message(notice["message"])
             return
 
         start_date = str(tool_parameters.get("start_date") or "").strip()

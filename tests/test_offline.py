@@ -234,6 +234,20 @@ def test_tool_helpers():
         spec.loader.exec_module(mod)
         return mod
 
+    from utils.gtm_common import approval_notice, parse_threshold
+    check("threshold parses and defaults", parse_threshold("0.10") == 0.10
+          and parse_threshold(None) == 0.30 and parse_threshold("junk") == 0.30)
+    check("default threshold gates difficulty",
+          approval_notice("keyword_seo", "keyword_difficulty", {})["estimated_cost"] == "$0.45")
+    check("default threshold passes domain_authority (0.26 < 0.30)",
+          approval_notice("traffic_intel", "domain_authority", {}) is None)
+    check("low threshold gates dated similarweb metrics",
+          approval_notice("traffic_intel", "similar_sites", {"approval_threshold": 0.10}) is not None)
+    check("free metrics never gated even at threshold 0",
+          approval_notice("traffic_intel", "overview", {"approval_threshold": 0}) is None)
+    check("approved=true always passes",
+          approval_notice("keyword_seo", "keyword_difficulty", {"approved": True}) is None)
+
     ks = load("keyword_seo")
     tool = object.__new__(ks.KeywordSeoTool)
     tool.create_json_message = lambda d: ("json", d)
