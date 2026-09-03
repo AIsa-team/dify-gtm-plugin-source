@@ -192,6 +192,10 @@ data appendix behind it.
 
 # Gotchas
 
+- keyword_overview always serves the US database (upstream limitation — it
+  ignores country). For localized volumes use search_volume; for localized
+  ideas use keyword_suggestions.
+
 - Leave traffic_intel dates empty: the tool auto-anchors valid windows,
   including similar_sites' strict "latest 3 published months" rule. Report
   which months the data covers (echoed in the response meta).

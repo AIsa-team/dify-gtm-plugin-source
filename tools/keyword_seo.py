@@ -42,9 +42,13 @@ class KeywordSeoTool(Tool):
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
             if metric == "keyword_overview":
+                # Gateway drift (verified live 2026-09): this endpoint rejects
+                # the documented 'database' param outright ("request does not
+                # match the endpoint contract"). Omit it — the US database is
+                # served by default. Other Semrush endpoints accept 'database'.
                 result = client.request(
                     "GET", "/semrush/keyword-overview",
-                    params={"phrase": keyword, "database": database},
+                    params={"phrase": keyword},
                 )
             elif metric == "keyword_difficulty":
                 # Semrush accepts up to 20 keywords separated by ';'
@@ -93,10 +97,15 @@ class KeywordSeoTool(Tool):
 
         result = truncate_payload(result)
         subject = keyword if metric in _KEYWORD_METRICS else domain
-        yield self.create_json_message({"metric": metric, "subject": subject, "result": result})
-        yield self.create_text_message(
-            generic_summary(f"Keyword/SEO — {metric} for '{subject}':", result)
-        )
+        payload: dict[str, Any] = {"metric": metric, "subject": subject, "result": result}
+        summary = generic_summary(f"Keyword/SEO — {metric} for '{subject}':", result)
+        if metric == "keyword_overview" and database != "us":
+            notice = ("Note: keyword_overview currently serves the US database only "
+                      "(upstream limitation); use search_volume for localized volumes.")
+            payload["notice"] = notice
+            summary += "\n" + notice
+        yield self.create_json_message(payload)
+        yield self.create_text_message(summary)
 
     def _error(self, message: str) -> ToolInvokeMessage:
         return self.create_json_message(
