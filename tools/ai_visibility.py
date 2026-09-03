@@ -17,6 +17,20 @@ _SOURCES = ("chatgpt", "gemini", "perplexity", "google_ai_mode", "google_search"
 _PROMPT_CAPS = {"chatgpt": 4000, "gemini": 8000}
 
 
+def enrich_upstream_error(source: str, message: str) -> str:
+    """Translate known upstream conditions into actionable guidance."""
+    if "Push-Pull" in message or "Realtime integration" in message:
+        return (
+            f"The '{source}' answer engine is temporarily unavailable upstream: "
+            "the data provider moved LLM sources (chatgpt/gemini/perplexity) to "
+            "async-only delivery, which AIsa's synchronous endpoint does not yet "
+            "support. This affects all AIsa consumers, not this configuration. "
+            "Use source=google_ai_mode or source=google_search instead — both "
+            "work — and note the gap in your Coverage note."
+        )
+    return message
+
+
 def _source_params(source: str, prompt: str) -> dict:
     if source in ("google_search", "google_ai_mode"):
         return {"query": prompt, "render": "html"}
@@ -58,7 +72,10 @@ class AiVisibilityTool(Tool):
                 "POST", "/oxylabs/ai-search", data=body, timeout=110, retries=0
             )
         except AisaApiError as e:
-            yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
+            yield self.create_json_message(
+                {"error": {"code": e.code,
+                           "message": enrich_upstream_error(source, e.message)}}
+            )
             return
 
         result = truncate_payload(result)

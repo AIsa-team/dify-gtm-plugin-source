@@ -313,6 +313,12 @@ def test_tool_helpers():
           av._source_params("gemini", "g" * 9000) == {"prompt": "g" * 8000})
     check("perplexity uses prompt, uncapped",
           av._source_params("perplexity", "hello") == {"prompt": "hello"})
+    enriched = av.enrich_upstream_error(
+        "chatgpt", "Realtime integration is not supported for LLM sources. Please use Push-Pull.")
+    check("push-pull 422 enriched with guidance",
+          "google_ai_mode" in enriched and "temporarily unavailable" in enriched)
+    check("other errors pass through unenriched",
+          av.enrich_upstream_error("chatgpt", "quota exceeded") == "quota exceeded")
 
     ti = load("traffic_intel")
     check("latest month from snapshot meta",
