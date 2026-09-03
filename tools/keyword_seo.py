@@ -10,6 +10,9 @@ from utils.gtm_common import dfs_location_name, semrush_database
 _KEYWORD_METRICS = ("keyword_overview", "keyword_difficulty", "keyword_suggestions", "search_volume")
 _DOMAIN_METRICS = ("domain_keywords", "domain_competitors", "backlinks_overview")
 
+# Human-in-the-loop cost gate: these metrics never run without approved=true.
+_PREMIUM_METRICS = {"keyword_difficulty": "$0.45", "domain_competitors": "$0.36"}
+
 
 class KeywordSeoTool(Tool):
     """Keyword and SEO intelligence — Semrush + DataForSEO."""
@@ -34,6 +37,25 @@ class KeywordSeoTool(Tool):
             return
         if metric in _DOMAIN_METRICS and not domain:
             yield self._error(f"Metric '{metric}' requires the 'domain' parameter.")
+            return
+
+        # Cost gate — refuses BEFORE any API call, so this response is free.
+        if metric in _PREMIUM_METRICS and not tool_parameters.get("approved"):
+            cost = _PREMIUM_METRICS[metric]
+            notice = {
+                "requires_approval": True,
+                "metric": metric,
+                "estimated_cost": cost,
+                "message": (
+                    f"'{metric}' is a premium call ({cost}). No data was fetched and "
+                    "nothing was charged. Ask the user to approve the cost, then "
+                    "retry this exact call with approved=true. If the user already "
+                    "approved premium calls (in conversation or via a pre-approval "
+                    "setting), retry with approved=true now."
+                ),
+            }
+            yield self.create_json_message(notice)
+            yield self.create_text_message(notice["message"])
             return
 
         database = semrush_database(country)

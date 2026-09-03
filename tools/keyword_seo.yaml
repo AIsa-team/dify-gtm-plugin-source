@@ -81,6 +81,17 @@ parameters:
       zh_Hans: "区域数据库的两位国家代码（默认 us）。"
     llm_description: "Optional two-letter country code (us, uk, de, jp, ...). Default 'us'."
     form: llm
+  - name: approved
+    type: boolean
+    required: false
+    label:
+      en_US: "Premium cost approved"
+      zh_Hans: "已批准高价调用"
+    human_description:
+      en_US: "Required for premium metrics: keyword_difficulty ($0.45/call) and domain_competitors ($0.36/call). Without it, the tool returns an approval request instead of running."
+      zh_Hans: "高价指标必需：keyword_difficulty（$0.45/次）与 domain_competitors（$0.36/次）。未设置时工具返回审批请求而不执行。"
+    llm_description: "Cost-approval flag for the premium metrics keyword_difficulty ($0.45) and domain_competitors ($0.36). Set true ONLY after the user explicitly approved the cost in this conversation, or when the app context pre-approves premium calls. Never set it on your own initiative."
+    form: llm
 extra:
   python:
     source: tools/keyword_seo.py

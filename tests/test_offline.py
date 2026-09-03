@@ -234,6 +234,19 @@ def test_tool_helpers():
         spec.loader.exec_module(mod)
         return mod
 
+    ks = load("keyword_seo")
+    tool = object.__new__(ks.KeywordSeoTool)
+    tool.create_json_message = lambda d: ("json", d)
+    tool.create_text_message = lambda t: ("text", t)
+    out = list(tool._invoke({"metric": "keyword_difficulty", "keyword": "crm; helpdesk"}))
+    check("premium metric without approval is refused (no API call)",
+          out[0][1].get("requires_approval") is True and "$0.45" in out[0][1]["estimated_cost"])
+    out = list(tool._invoke({"metric": "domain_competitors", "domain": "x.com"}))
+    check("domain_competitors gated too", out[0][1].get("requires_approval") is True)
+    out = list(tool._invoke({"metric": "keyword_overview", "keyword": "crm"}))
+    check("cheap metrics not gated (fails later on missing runtime, not approval)",
+          not (isinstance(out[0][1], dict) and out[0][1].get("requires_approval")))
+
     fp = load("find_prospects")
     check("title splitting", fp._split("CEO, VP Marketing") == ["CEO", "VP Marketing"])
     check("size ranges to Apollo format", fp._size_ranges("11-50, 51-200") == ["11,50", "51,200"])
