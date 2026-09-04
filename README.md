@@ -1,7 +1,7 @@
 # AIsa Go-to-Market
 
 **Author:** aisa-team
-**Version:** 0.1.2
+**Version:** 0.1.3
 **Type:** tool
 
 Premium go-to-market data for your Dify agents — competitor traffic intelligence, keyword research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility — all through **one AIsa API key**.
