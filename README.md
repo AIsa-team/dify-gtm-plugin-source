@@ -22,7 +22,7 @@ Building GTM automation normally means juggling accounts, contracts, and bills f
 | **Social Listening** | X, Reddit, Instagram, Pinterest, YouTube | Search brand mentions and conversations, look up public profiles (read-only) |
 | **Find Prospects** | Apollo | Search people by title/location/company size, search companies, enrich a company from its domain |
 | **Find Creators** | WaveInflu | Discover creators similar to a seed YouTube/TikTok profile, look up creator contact emails |
-| **AI Visibility** | Oxylabs | See how ChatGPT, Gemini, Perplexity, or Google AI Mode actually answer a buyer-style question (GEO/AEO) |
+| **AI Visibility** | Oxylabs + DataForSEO | See how ChatGPT, Gemini, Perplexity, Claude, Google AI Mode, or classic Google actually answer a buyer-style question (GEO/AEO) — six engines |
 
 ### Example prompts
 
@@ -50,7 +50,7 @@ The plugin makes outbound HTTPS (port 443) requests to **`api.aisa.one` only** �
 - **Separators**: keyword difficulty accepts up to 20 keywords separated by `;` — search volume accepts up to 100 separated by `,`.
 - **Country targeting**: pass two-letter codes or full names ("de", "Germany") — 30+ markets are mapped for localized keyword data.
 - **TikTok** content search is not currently available upstream; TikTok *creators* are still discoverable through Find Creators.
-- **AI Visibility** queries render a live answer-engine session upstream and can take up to ~2 minutes.
+- **AI Visibility** covers six engines across two providers; LLM-engine sessions can take up to ~2 minutes.
 - All tools are **read-only**: nothing is posted, sent, or contacted on your behalf.
 
 ## Privacy

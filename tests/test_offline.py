@@ -303,22 +303,30 @@ def test_tool_helpers():
     check("garbage size ranges dropped", fp._size_ranges("big companies") == [])
 
     av = load("ai_visibility")
-    check("google_ai_mode uses query + render",
-          av._source_params("google_ai_mode", "x") == {"query": "x", "render": "html"})
-    check("google_search uses query + render",
-          av._source_params("google_search", "x") == {"query": "x", "render": "html"})
-    check("chatgpt uses capped prompt + web search",
-          av._source_params("chatgpt", "p" * 5000) == {"prompt": "p" * 4000, "search": True})
-    check("gemini capped at 8000, no search flag",
-          av._source_params("gemini", "g" * 9000) == {"prompt": "g" * 8000})
-    check("perplexity uses prompt, uncapped",
-          av._source_params("perplexity", "hello") == {"prompt": "hello"})
-    enriched = av.enrich_upstream_error(
-        "chatgpt", "Realtime integration is not supported for LLM sources. Please use Push-Pull.")
-    check("push-pull 422 enriched with guidance",
-          "google_ai_mode" in enriched and "temporarily unavailable" in enriched)
-    check("other errors pass through unenriched",
-          av.enrich_upstream_error("chatgpt", "quota exceeded") == "quota exceeded")
+    check("claude is a routed LLM engine", "claude" in av._DFS_ENGINES and "claude" in av._SOURCES)
+    body = av._dfs_body("chatgpt", "best crm", "gpt-5.6-sol", "US")
+    check("chatgpt DFS task: web_search + geo",
+          body == [{"user_prompt": "best crm", "model_name": "gpt-5.6-sol",
+                    "web_search": True, "web_search_country_iso_code": "US"}])
+    body = av._dfs_body("gemini", "q", "gemini-3.8-flash", "US")
+    check("gemini: web_search but no country field",
+          body[0].get("web_search") is True and "web_search_country_iso_code" not in body[0])
+    body = av._dfs_body("perplexity", "q", "sonar-pro", "US")
+    check("perplexity: country but no web_search flag",
+          body[0].get("web_search_country_iso_code") == "US" and "web_search" not in body[0])
+
+    from utils.aisa_client import AisaApiError as _AE
+    ok = av._dfs_result({"tasks": [{"status_code": 20000, "result": [{"a": 1}], "cost": 0.001}]})
+    check("DFS envelope unwrapped", ok["result"] == [{"a": 1}])
+    try:
+        av._dfs_result({"tasks": [{"status_code": 40501, "status_message": "Invalid model_name."}]})
+        raise AssertionError("DFS task error not raised")
+    except _AE as e:
+        check("DFS in-envelope rejection raised (HTTP 200 trap)", e.code == "40501")
+    check("first model extracted from models envelope",
+          av._first_model({"tasks": [{"result": [{"items": [{"model_name": "sonar"}]}]}]}) == "sonar")
+    check("defaults exist for every LLM engine",
+          set(av._DEFAULT_MODELS) == set(av._DFS_ENGINES))
 
     ti = load("traffic_intel")
     check("latest month from snapshot meta",
