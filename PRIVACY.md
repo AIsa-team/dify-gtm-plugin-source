@@ -2,7 +2,9 @@
 This Dify plugin (AIsa Go-to-Market) is a stateless connector to the AIsa Services
 at api.aisa.one: your AIsa API key (stored by Dify's credential store) and tool
 inputs are transmitted to AIsa solely to fulfill each request, and the plugin
-itself retains no data and collects no telemetry. All data handling is governed
+itself retains no data and collects no telemetry. Each request carries a standard
+User-Agent header identifying the plugin's name and version (nothing else), so
+AIsa can support and improve the integration. All data handling is governed
 by the official AIsa Privacy Policy below, reproduced from
 https://aisa.one/privacy.
 

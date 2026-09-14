@@ -15,6 +15,8 @@ Error-handling contract (important):
 """
 
 import json
+import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -22,6 +24,31 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 GTM_PLAN_URL = "https://aisa.one/solutions/go-to-market"
+
+
+def _plugin_version() -> str:
+    """Plugin version from the bundled manifest — the single source of truth,
+    so the User-Agent can never drift from the released version."""
+    manifest = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "manifest.yaml"
+    )
+    try:
+        with open(manifest, encoding="utf-8") as f:
+            match = re.search(r"^version:\s*[\"']?([0-9][\w.\-]*)", f.read(), re.M)
+        if match:
+            return match.group(1)
+    except OSError:
+        pass
+    return "unknown"
+
+
+# RFC 9110 product token + source-URL comment, so AIsa can attribute and
+# version-segment plugin traffic in gateway logs. Quote requests carry the
+# same UA (segment them via the X-AISA-Cost-Mode request header).
+USER_AGENT = (
+    f"aisa-gtm-dify-plugin/{_plugin_version()} "
+    "(+https://github.com/AIsa-team/dify-gtm-plugin-source)"
+)
 
 AUTH_HINT = (
     "Invalid or missing AIsa API key. Get one with the AIsa Go-to-Market plan "
@@ -318,7 +345,7 @@ class AisaClient:
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "AIsa-GTM-Dify-Plugin/0.1",
+            "User-Agent": USER_AGENT,
         }
 
         request_data = None

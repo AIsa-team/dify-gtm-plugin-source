@@ -145,6 +145,7 @@ def test_request_headers():
 
     def fake_urlopen(req, timeout=None):
         captured["ct"] = req.headers.get("Content-type")
+        captured["ua"] = req.headers.get("User-agent")
         captured["url"] = req.full_url
         return FakeResp()
 
@@ -154,6 +155,13 @@ def test_request_headers():
         c.request("GET", "/semrush/keyword-overview", params={"phrase": "AI agents"})
         check("GET sends no Content-Type", captured["ct"] is None)
         check("spaces encoded as %20, not +", "phrase=AI%20agents" in captured["url"])
+        import re as _re
+        check("User-Agent follows the RFC 9110 product-token shape",
+              _re.fullmatch(
+                  r"aisa-gtm-dify-plugin/\d+\.\d+\.\d+ "
+                  r"\(\+https://github\.com/AIsa-team/dify-gtm-plugin-source\)",
+                  captured["ua"] or "") is not None,
+              f"got {captured['ua']!r}")
         c.request("POST", "/tavily/search", data={"query": "x"})
         check("POST sends Content-Type json", captured["ct"] == "application/json")
         c.request("POST", "/apollo/mixed_people/api_search",
@@ -467,6 +475,9 @@ def test_yaml_wiring():
     check("localized README uses dot naming",
           os.path.exists(os.path.join(ROOT, "README.zh_Hans.md"))
           and not os.path.exists(os.path.join(ROOT, "README_zh_Hans.md")))
+    from utils.aisa_client import USER_AGENT
+    check("User-Agent version matches the manifest (no drift)",
+          f"/{manifest['version']} " in USER_AGENT, f"UA={USER_AGENT!r}")
 
 
 def test_quote_gate():

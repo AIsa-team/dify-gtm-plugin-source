@@ -56,7 +56,7 @@ The plugin makes outbound HTTPS (port 443) requests to **`api.aisa.one` only** â
 
 ## Privacy
 
-Tool inputs (queries, domains, keywords, URLs) are forwarded to AIsa's API to fulfill each request; the plugin itself stores nothing. See [PRIVACY.md](PRIVACY.md) for details.
+Tool inputs (queries, domains, keywords, URLs) are forwarded to AIsa's API to fulfill each request; the plugin itself stores nothing. Requests identify the plugin by name and version via the standard `User-Agent` header so AIsa can support and improve the integration â€” no other client information is sent. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## Support
 
