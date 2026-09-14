@@ -28,8 +28,9 @@ Rebase:   python3 tests/contract_audit.py --record   (rewrites the baseline)
 CI:       .github/workflows/contract-audit.yml (weekly)
 
 Known accepted deviation (2026-09): the deployed REST gateway rejects
-'database' on semrush keyword-overview although the router schema documents
-it (retested live 2026-09-14); the plugin deliberately omits it there.
+'database' on semrush keyword-overview AND domain-overview although the
+schemas document it (verified live 2026-09-14); the plugin deliberately
+omits it on both (question-keywords and broad-match-keywords accept it).
 """
 
 import hashlib
@@ -58,15 +59,21 @@ SENT = {
     "similarwebSimilarSites": {"domain", "start_date", "end_date", "limit", "country"},
     "similarwebTechnologies": {"domain", "start_date", "end_date", "granularity", "limit", "country"},
     "similarwebPopularPages": {"domain", "start_date", "end_date", "limit", "country"},
+    "similarwebKeywordCompetitors": {"domain", "start_date", "end_date", "limit", "country"},
+    "similarwebLandingPages": {"domain", "start_date", "end_date", "limit", "country"},
     "get_ahrefs_domain_rating": {"target", "date"},
     "get_ahrefs_site_metrics": {"target", "date"},
     "get_semrush_keyword_overview": {"phrase"},  # database deliberately omitted
     "get_semrush_keyword_difficulty": {"phrase", "database"},
+    "get_semrush_question_keywords": {"phrase", "database"},
+    "get_semrush_broad_match_keywords": {"phrase", "database"},
+    "get_semrush_domain_overview": {"domain"},  # database rejected by gateway (like keyword_overview)
     "get_semrush_domain_organic_keywords": {"domain", "database"},
     "get_semrush_organic_competitors": {"domain", "database"},
     "get_semrush_backlinks_overview": {"target"},
     "post_dataforseo_labs_google_keyword_suggestions_live": set(),   # array body
     "post_dataforseo_keywords_gads_search_volume_live": set(),       # array body
+    "post_dataforseo_ai_keyword_volume_live": set(),                 # array body
     "get_twitter_tweet_advanced_search": {"query", "queryType"},
     "get_twitter_user_info": {"userName"},
     "get_reddit_search": {"query", "sort", "trim"},
@@ -82,20 +89,23 @@ SENT = {
                                            "organization_num_employees_ranges[]",
                                            "q_organization_domains_list[]", "per_page", "page"},
     "get_apollo_organizations_enrich": {"domain"},
+    "post_apollo_organizations_bulk_enrich": {"domains[]"},
+    "post_firecrawl_search": {"query", "limit"},
     "post_waveinflu_similar_creators": {"platform", "seedProfileUrl", "limit", "contentDirection"},
     "post_waveinflu_email_lookup": {"url"},
     "post_oxylabs_ai_search": {"source", "prompt", "query", "parse", "geo_location", "render", "search"},
 }
 
-# Quote-plane canaries: (fallback key, method, REST path, params, body).
+# Quote-plane canaries: (method, REST path, params, body). The runtime price
+# gate depends entirely on live quotes (there is deliberately no static price
+# table anywhere in this plugin), so the audit fails hard if quoting stops.
 # Quotes are free (X-AISA-Cost-Mode: quote) — nothing executes, nothing bills.
 QUOTE_CANARIES = [
-    (("traffic_intel", "overview"), "GET", "/similarweb/website-traffic-snapshot",
+    ("GET", "/similarweb/website-traffic-snapshot",
      {"domain": "example.com", "country": "us"}, None),
-    (("keyword_seo", "keyword_difficulty"), "GET", "/semrush/keyword-difficulty",
+    ("GET", "/semrush/keyword-difficulty",
      {"phrase": "seo tools", "database": "us"}, None),
-    (("web_research", "search"), "POST", "/tavily/search",
-     None, {"query": "contract audit canary"}),
+    ("POST", "/tavily/search", None, {"query": "contract audit canary"}),
 ]
 
 
@@ -168,7 +178,6 @@ def audit_quotes():
     """Verify the REST quote plane the runtime price gate depends on."""
     sys.path.insert(0, ROOT)
     from utils.aisa_client import AisaApiError, AisaClient
-    from utils.gtm_common import FALLBACK_PRICES
 
     key = os.environ.get("AISA_API_KEY", "").strip()
     if not key:
@@ -176,34 +185,29 @@ def audit_quotes():
 
     hard, info = [], []
     client = AisaClient(key)
-    for fb_key, method, path, params, body in QUOTE_CANARIES:
-        fallback = FALLBACK_PRICES[fb_key]
+    for method, path, params, body in QUOTE_CANARIES:
         try:
             est = client.quote(method, path, params=params, data=body)
             quoted = float(est.get("estimated_cost_micros_usd") or 0) / 1_000_000
+            info.append(f"{path}: quote plane serving (${quoted:.4f})")
         except AisaApiError as e:
             hard.append(
                 f"quote plane DOWN for {path}: [{e.code}] {e.message} — "
-                "the runtime approval gate depends on X-AISA-Cost-Mode: quote"
+                "the runtime approval gate depends on X-AISA-Cost-Mode: quote "
+                "and fails safe (refuses unpriceable calls) while this is broken"
             )
-            continue
-        if quoted > fallback:
-            hard.append(
-                f"{path}: live quote ${quoted:.4f} EXCEEDS static fallback "
-                f"${fallback:.2f} ({fb_key}) — raise FALLBACK_PRICES or the "
-                "gate under-asks whenever quotes are unavailable"
-            )
-        else:
-            info.append(f"{path}: quote ${quoted:.4f} <= fallback ${fallback:.2f} ok")
     return hard, info
 
 
 def main():
-    baseline = json.load(open(os.path.join(HERE, "contracts_baseline.json")))
-    names = sorted(baseline.keys())
+    # SENT is the authority on which tools the plugin calls; the baseline
+    # must cover exactly that set (regenerate with --record after adding one).
+    names = sorted(SENT)
 
     if "--record" in sys.argv:
         return record(names)
+
+    baseline = json.load(open(os.path.join(HERE, "contracts_baseline.json")))
 
     try:
         live = fetch_live(names)
@@ -225,10 +229,14 @@ def main():
         if not c or not c.get("successful"):
             hard_fail.append(f"{name}: MISSING/unavailable in live catalog")
             continue
+        base = baseline.get(name)
+        if base is None:
+            hard_fail.append(f"{name}: not in baseline — run --record after "
+                             "adding a tool to SENT")
+            continue
         schema = c.get("arguments_schema") or {}
         props = set((schema.get("properties") or {}).keys())
         required = set(schema.get("required") or [])
-        base = baseline[name]
 
         s_hash, p_hash = entry_hashes(c)
         if s_hash != base["schema_sha256"]:

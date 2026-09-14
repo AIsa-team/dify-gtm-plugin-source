@@ -106,6 +106,17 @@
   ],
   "schema_sha256": "66a3801b3590daec312e836da133294cf6b8a6e084897c6f060ade8958d8c7e2"
  },
+ "get_semrush_broad_match_keywords": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "database",
+   "phrase"
+  ],
+  "required": [
+   "phrase"
+  ],
+  "schema_sha256": "5af0dc3b8a7033f3cdfa7f13ef0b8d4031e9a601d133225a11f2296fdc35778c"
+ },
  "get_semrush_domain_organic_keywords": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "properties": [
@@ -117,6 +128,17 @@
    "domain"
   ],
   "schema_sha256": "1da67f8e1d6ba3f3c29c52b5fb518d1599db008f25c6d37f8aa1b9c3c30b2473"
+ },
+ "get_semrush_domain_overview": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "database",
+   "domain"
+  ],
+  "required": [
+   "domain"
+  ],
+  "schema_sha256": "edae51d8392322e7cc636bffed9f1648cc6334989af0968c124249369320683e"
  },
  "get_semrush_keyword_difficulty": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -151,6 +173,17 @@
    "domain"
   ],
   "schema_sha256": "1da67f8e1d6ba3f3c29c52b5fb518d1599db008f25c6d37f8aa1b9c3c30b2473"
+ },
+ "get_semrush_question_keywords": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "database",
+   "phrase"
+  ],
+  "required": [
+   "phrase"
+  ],
+  "schema_sha256": "5af0dc3b8a7033f3cdfa7f13ef0b8d4031e9a601d133225a11f2296fdc35778c"
  },
  "get_twitter_tweet_advanced_search": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -251,6 +284,26 @@
   "required": [],
   "schema_sha256": "6a8c5e52054057095d1f70c86767c4856ff59620a9f81a8d8d51070b6c4f2fb8"
  },
+ "post_apollo_organizations_bulk_enrich": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "domains[]"
+  ],
+  "required": [
+   "domains[]"
+  ],
+  "schema_sha256": "59f6cba499a13340f034a81617e80cd598193695f18adfe24745cfc5563b1428"
+ },
+ "post_dataforseo_ai_keyword_volume_live": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "body"
+  ],
+  "required": [
+   "body"
+  ],
+  "schema_sha256": "5a34f82d235e09884f2bf5546f631ebeb5fae0bebbf60b2fbdc8f30cfa558c4c"
+ },
  "post_dataforseo_keywords_gads_search_volume_live": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "properties": [
@@ -270,6 +323,17 @@
    "body"
   ],
   "schema_sha256": "f4d26f0471dc60ad86d64e4d0740c4f651ba05af456d05e20b816e30fe93d97b"
+ },
+ "post_firecrawl_search": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "limit",
+   "query"
+  ],
+  "required": [
+   "query"
+  ],
+  "schema_sha256": "840b2174f16d1ddfbaead758c7bb88f3dacad902177b976d6168015e7cc9c183"
  },
  "post_oxylabs_ai_search": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -423,6 +487,50 @@
    "start_date"
   ],
   "schema_sha256": "8afc900cb41b97d8a969db975c865bfee30840d30e3f3a3c91f2c6ec5b92b35b"
+ },
+ "similarwebKeywordCompetitors": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "limit",
+   "main_domain_only",
+   "offset",
+   "start_date",
+   "traffic_source",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "limit",
+   "start_date"
+  ],
+  "schema_sha256": "b1b445e91f0c1917ded1d7827d54cfec5cb263606025fba0683e3b4e4c50e226"
+ },
+ "similarwebLandingPages": {
+  "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "properties": [
+   "country",
+   "domain",
+   "end_date",
+   "granularity",
+   "limit",
+   "main_domain_only",
+   "offset",
+   "start_date",
+   "traffic_source",
+   "web_source"
+  ],
+  "required": [
+   "domain",
+   "end_date",
+   "limit",
+   "start_date"
+  ],
+  "schema_sha256": "b1b445e91f0c1917ded1d7827d54cfec5cb263606025fba0683e3b4e4c50e226"
  },
  "similarwebPopularPages": {
   "pitfalls_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

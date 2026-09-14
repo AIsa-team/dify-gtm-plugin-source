@@ -84,6 +84,8 @@ _METRICS = (
     "similar_sites",
     "technologies",
     "popular_pages",
+    "keyword_competitors",
+    "landing_pages",
     "domain_authority",
 )
 
@@ -197,6 +199,25 @@ class TrafficIntelTool(Tool):
                         "limit": 20,
                         "country": sw_country,
                     },
+                )
+            elif metric == "keyword_competitors":
+                # Sites competing with this domain for the same search
+                # keywords. The /search/ endpoints publish a FRESHER valid
+                # window than the lag-2 default (verified live 2026-09-14),
+                # so route through the self-healing dated flow.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=3)
+                result = _dated_request(
+                    client, "/similarweb/search/keyword-competitors",
+                    {"domain": domain, "limit": 20, "country": sw_country},
+                    s, e, span=3,
+                )
+            elif metric == "landing_pages":
+                # Where search traffic actually lands on this domain.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=3)
+                result = _dated_request(
+                    client, "/similarweb/search/landing-pages",
+                    {"domain": domain, "limit": 20, "country": sw_country},
+                    s, e, span=3,
                 )
             else:  # domain_authority — Ahrefs, two snapshot calls merged
                 snapshot_date = today_str()

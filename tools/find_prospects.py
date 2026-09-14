@@ -9,7 +9,7 @@ from utils.aisa_client import (
 )
 from utils.gtm_common import CostGuard
 
-_SEARCH_TYPES = ("people", "companies", "enrich_company")
+_SEARCH_TYPES = ("people", "companies", "enrich_company", "enrich_bulk")
 
 
 def _split(raw: Any) -> List[str]:
@@ -45,8 +45,11 @@ class FindProspectsTool(Tool):
                 f"Unknown search_type '{search_type}'. Use one of: {', '.join(_SEARCH_TYPES)}."
             )
             return
-        if search_type == "enrich_company" and not domain:
-            yield self._error("search_type 'enrich_company' requires the 'domain' parameter.")
+        if search_type in ("enrich_company", "enrich_bulk") and not domain:
+            yield self._error(
+                f"search_type '{search_type}' requires the 'domain' parameter"
+                + (" (comma-separated, up to 10 domains)." if search_type == "enrich_bulk" else ".")
+            )
             return
         if search_type == "people" and not (keywords or job_titles or locations or domain):
             yield self._error(
@@ -92,6 +95,16 @@ class FindProspectsTool(Tool):
                     params["q_organization_domains_list[]"] = [domain]
                 result = client.request(
                     "POST", "/apollo/mixed_companies/search", params=params
+                )
+            elif search_type == "enrich_bulk":
+                domains = [
+                    d.removeprefix("https://").removeprefix("http://")
+                     .strip("/").removeprefix("www.")
+                    for d in _split(domain)
+                ][:10]
+                result = client.request(
+                    "POST", "/apollo/organizations/bulk_enrich",
+                    params={"domains[]": domains},
                 )
             else:  # enrich_company
                 result = client.request(

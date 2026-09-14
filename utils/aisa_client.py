@@ -93,6 +93,9 @@ def _classify_and_raise(code: str, message: str) -> None:
 _REQUIRED_PARAMS = {
     "/semrush/keyword-overview": {"phrase"},
     "/semrush/keyword-difficulty": {"phrase"},
+    "/semrush/question-keywords": {"phrase"},
+    "/semrush/broad-match-keywords": {"phrase"},
+    "/semrush/domain-overview": {"domain"},
     "/semrush/domain-organic-keywords": {"domain", "database"},
     "/semrush/domain-organic-competitors": {"domain", "database"},
     "/semrush/backlinks-overview": {"target"},
@@ -105,6 +108,8 @@ _REQUIRED_PARAMS = {
     "/similarweb/website/similar-sites": {"domain", "start_date", "end_date", "limit"},
     "/similarweb/website/technologies": {"domain", "start_date", "end_date", "granularity", "limit"},
     "/similarweb/website/popular-pages": {"domain", "start_date", "end_date", "limit"},
+    "/similarweb/search/keyword-competitors": {"domain", "start_date", "end_date", "limit"},
+    "/similarweb/search/landing-pages": {"domain", "start_date", "end_date", "limit"},
     "/ahrefs/site-explorer/domain-rating": {"target", "date"},
     "/ahrefs/site-explorer/metrics": {"target", "date"},
     "/twitter/tweet/advanced_search": {"query", "queryType"},
@@ -177,21 +182,38 @@ class AisaClient:
         params: Optional[Dict[str, Any]],
         data: Optional[Dict[str, Any]],
     ) -> None:
-        """Quote the request and apply the guard. Falls back to the static
-        price table only when the quote plane itself is unavailable."""
+        """Quote the request and apply the guard.
+
+        There is deliberately NO static price fallback: when the quote plane
+        is unavailable the price is unknown, and the guard fails safe by
+        requiring explicit approval to run an unpriceable call."""
         guard = self.cost_guard
         source = "live_quote"
+        estimate = None
         try:
             estimate = self.quote(method, endpoint, params, data)
+        except AisaApiError as e:
+            # The quote plane validates the request contract too — give a
+            # drifted contract the same required-params self-heal the real
+            # call gets, so drift degrades to the fallback retry instead of
+            # landing every call in the unpriceable fail-safe.
+            minimal = self._minimal_params(endpoint, params)
+            if minimal is not None and _CONTRACT_MISMATCH_MARKER in e.message:
+                try:
+                    estimate = self.quote(method, endpoint, minimal, data)
+                except AisaApiError:
+                    estimate = None
+        if estimate is not None:
             price_usd = float(estimate.get("estimated_cost_micros_usd") or 0) / 1_000_000
-        except AisaApiError:
-            price_usd = guard.fallback_price
-            source = "static_fallback"
+        else:
+            price_usd = None
+            source = "quote_unavailable"
         notice = guard.decide(price_usd, endpoint, source)
         if notice is not None:
             raise AisaApprovalRequired(notice)
         self.call_quotes.append(
-            {"endpoint": endpoint, "estimated_cost_usd": round(price_usd, 6),
+            {"endpoint": endpoint,
+             "estimated_cost_usd": None if price_usd is None else round(price_usd, 6),
              "source": source}
         )
 
@@ -199,11 +221,11 @@ class AisaClient:
         """Per-call quoted costs for this invocation, for honest output."""
         if not self.call_quotes:
             return None
+        priced = [q["estimated_cost_usd"] for q in self.call_quotes
+                  if q["estimated_cost_usd"] is not None]
         return {
             "quoted_calls": list(self.call_quotes),
-            "quoted_total_usd": round(
-                sum(q["estimated_cost_usd"] for q in self.call_quotes), 6
-            ),
+            "quoted_total_usd": round(sum(priced), 6),
             "note": "Upstream price quotes at call time; failed calls are not charged.",
         }
 
@@ -390,6 +412,15 @@ class AisaClient:
             )
         if isinstance(error, str) and error:
             return default_code, error
+        # Similarweb /search/ endpoints report errors inside 'meta'
+        # (status/error_code/error_message) rather than a top-level 'error' —
+        # surface those so window-rejection markers (e.g. 101) stay visible.
+        meta = body.get("meta")
+        if isinstance(meta, dict) and (meta.get("error_message") or meta.get("error_code")):
+            return (
+                str(meta.get("error_code", default_code)),
+                str(meta.get("error_message", "Unknown AIsa API error")),
+            )
         return default_code, str(body.get("message", "Unknown AIsa API error"))
 
     # --------------------------------------------------------------- account

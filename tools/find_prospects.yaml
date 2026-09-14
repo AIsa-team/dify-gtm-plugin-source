@@ -12,7 +12,7 @@ description:
     zh_Hans: "通过 AIsa 使用 Apollo 进行 B2B 客户开发——按职位/地区搜索联系人、搜索公司、或通过域名补全公司信息。"
     pt_BR: "Prospecção B2B com Apollo via AIsa — pesquise pessoas por cargo/local, pesquise empresas ou enriqueça uma empresa pelo domínio."
     ja_JP: "AIsa経由のApolloによるB2Bプロスペクティング——役職・所在地で人物検索、企業検索、ドメインからの企業情報エンリッチ。"
-  llm: "B2B prospecting via Apollo. search_type 'people': find contacts by job_titles (comma-separated, e.g. 'CEO, VP Marketing'), keywords, locations, company_size, or employer domain. search_type 'companies': find companies by keywords, locations, company_size. search_type 'enrich_company': full firmographic profile for one company domain. Use to build target account lists and find decision makers."
+  llm: "B2B prospecting via Apollo. search_type 'people': find contacts by job_titles (comma-separated, e.g. 'CEO, VP Marketing'), keywords, locations, company_size, or employer domain. search_type 'companies': find companies by keywords, locations, company_size. search_type 'enrich_company': full firmographic profile for one company domain. search_type 'enrich_bulk': firmographic profiles for up to 10 comma-separated domains in ONE call — prefer it when enriching several companies. Use to build target account lists and find decision makers."
 parameters:
   - name: search_type
     type: select
@@ -28,6 +28,9 @@ parameters:
       - value: enrich_company
         label:
           en_US: "Enrich a company"
+      - value: enrich_bulk
+        label:
+          en_US: "Enrich up to 10 companies"
     label:
       en_US: "Search type"
       zh_Hans: "搜索类型"
@@ -89,7 +92,7 @@ parameters:
     human_description:
       en_US: "Company domain — required for enrich_company, optional employer filter otherwise."
       zh_Hans: "公司域名——enrich_company 必填，其他类型作为雇主过滤条件。"
-    llm_description: "A company's domain, e.g. 'stripe.com'. Required for enrich_company; for people search it filters by employer."
+    llm_description: "A company's domain, e.g. 'stripe.com'. Required for enrich_company; for enrich_bulk pass up to 10 comma-separated domains; for people search it filters by employer."
     form: llm
   - name: approval_threshold
     type: number

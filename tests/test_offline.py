@@ -84,6 +84,12 @@ def test_client_errors():
 
     check("clean body passes through", c._check_body({"results": [1]}) == {"results": [1]})
 
+    code, msg = AisaClient._extract_error(
+        {"meta": {"status": "error", "error_code": 101,
+                  "error_message": "Dates not in range."}}, "400")
+    check("similarweb meta-envelope errors surfaced (window self-heal depends on it)",
+          code == "101" and "Dates not in range" in msg)
+
 
 def test_delimited_text():
     from utils.aisa_client import _parse_delimited_text, find_results
@@ -234,20 +240,19 @@ def test_contract_fallback():
 def test_audit_wiring():
     import json as _json
     baseline = _json.load(open(os.path.join(ROOT, "tests", "contracts_baseline.json")))
-    check("baseline covers 36 tools", len(baseline) == 36, f"got {len(baseline)}")
+    check("baseline covers 44 tools", len(baseline) == 44, f"got {len(baseline)}")
     check("baseline uses the BATCH_GET_SCHEMA-era fields",
           all({"schema_sha256", "pitfalls_sha256", "properties", "required"}
               <= set(entry) for entry in baseline.values()))
     sys.path.insert(0, os.path.join(ROOT, "tests"))
     import contract_audit
-    check("audit SENT map covers every baseline tool",
+    check("audit SENT map matches the recorded baseline exactly",
           set(contract_audit.SENT) == set(baseline))
     check("audit targets the current router meta-tool",
           "AISA_BATCH_GET_SCHEMA" in open(
               os.path.join(ROOT, "tests", "contract_audit.py")).read())
-    from utils.gtm_common import FALLBACK_PRICES
-    check("every quote canary maps to a fallback price",
-          all(key in FALLBACK_PRICES for key, *_ in contract_audit.QUOTE_CANARIES))
+    check("quote canaries defined (the gate has no static fallback)",
+          len(contract_audit.QUOTE_CANARIES) >= 3)
 
 
 def test_gtm_common():
@@ -282,8 +287,12 @@ def test_tool_helpers():
 
     # Tool wiring: the tool attaches a CostGuard and surfaces an approval
     # notice (raised by the client's quote-first gate) instead of executing.
-    ks = load("keyword_seo")
-    tool = object.__new__(ks.KeywordSeoTool)
+    ks = load("keyword_seo_geo")
+    check("GEO metrics registered",
+          {"ai_search_volume", "question_keywords", "broad_match"}
+          <= set(ks._KEYWORD_METRICS)
+          and "domain_overview" in ks._DOMAIN_METRICS)
+    tool = object.__new__(ks.KeywordSeoGeoTool)
     tool.create_json_message = lambda d: ("json", d)
     tool.create_text_message = lambda t: ("text", t)
     tool.runtime = types.SimpleNamespace(credentials={"aisa_api_key": "sk-test"})
@@ -320,6 +329,7 @@ def test_tool_helpers():
     check("title splitting", fp._split("CEO, VP Marketing") == ["CEO", "VP Marketing"])
     check("size ranges to Apollo format", fp._size_ranges("11-50, 51-200") == ["11,50", "51,200"])
     check("garbage size ranges dropped", fp._size_ranges("big companies") == [])
+    check("bulk enrichment registered", "enrich_bulk" in fp._SEARCH_TYPES)
 
     av = load("ai_visibility")
     check("claude is a routed LLM engine", "claude" in av._DFS_ENGINES and "claude" in av._SOURCES)
@@ -347,7 +357,39 @@ def test_tool_helpers():
     check("defaults exist for every LLM engine",
           set(av._DEFAULT_MODELS) == set(av._DFS_ENGINES))
 
+    wr = load("web_research")
+    wtool = object.__new__(wr.WebResearchTool)
+
+    class FallbackClient:
+        def __init__(self):
+            self.calls = []
+
+        def tavily_search(self, q):
+            raise wr.AisaApiError("502", "tavily upstream down")
+
+        def request(self, method, path, **kw):
+            self.calls.append(path)
+            return {"results": [{"url": "https://x.com", "title": "t"}]}
+
+    fc = FallbackClient()
+    out = wtool._search_with_fallback(fc, "q")
+    check("search falls back to firecrawl on upstream failure",
+          fc.calls == ["/firecrawl/search"]
+          and out.get("provider_fallback", "").startswith("tavily unavailable"))
+
+    class GatedClient(FallbackClient):
+        def tavily_search(self, q):
+            raise wr.AisaApprovalRequired({"requires_approval": True, "message": "m"})
+
+    try:
+        wtool._search_with_fallback(GatedClient(), "q")
+        raise AssertionError("approval swallowed by fallback")
+    except wr.AisaApprovalRequired:
+        check("cost gate is never bypassed via the fallback provider", True)
+
     ti = load("traffic_intel")
+    check("search-intelligence metrics registered",
+          {"keyword_competitors", "landing_pages"} <= set(ti._METRICS))
     check("latest month from snapshot meta",
           ti._latest_published_month({"meta": {"end_date": "2026-07"}, "data": {}}) == "2026-07")
     check("latest month falls back to data.month",
@@ -431,10 +473,16 @@ def test_quote_gate():
     """Quote-first price gate: client quotes upstream, guard decides."""
     import utils.aisa_client as m
     from utils.aisa_client import AisaApiError, AisaApprovalRequired
-    from utils.gtm_common import CostGuard, DEFAULT_FALLBACK_PRICE, FALLBACK_PRICES
+    from utils.gtm_common import CostGuard
+
+    # There is deliberately no static price table anywhere in the plugin —
+    # prices change upstream; only live quotes are trusted.
+    import utils.gtm_common as gc
+    check("no static price table in gtm_common",
+          not any("PRICES" in name for name in dir(gc)))
 
     # CostGuard decision matrix
-    g = CostGuard.from_params("keyword_seo", "keyword_difficulty", {})
+    g = CostGuard.from_params("keyword_seo_geo", "keyword_difficulty", {})
     check("guard defaults: threshold 0.30, not approved",
           g.threshold == 0.30 and not g.approved)
     check("live price under threshold passes",
@@ -448,13 +496,12 @@ def test_quote_gate():
           CostGuard("t", "m", 0.0, False).decide(0.0, "/x", "live_quote") is None)
     check("approved bypasses the gate",
           CostGuard.from_params("t", "m", {"approved": True}).decide(9.99, "/x", "live_quote") is None)
-    check("fallback price for known metric",
-          CostGuard("traffic_intel", "overview", 0.3, False).fallback_price == 0.55)
-    check("unknown metric fallback is never free",
-          CostGuard("t", "nope", 0.3, False).fallback_price == DEFAULT_FALLBACK_PRICE
-          and DEFAULT_FALLBACK_PRICE > 0)
-    check("no fallback entry is free (stale table must ask, not spend)",
-          all(p > 0 for p in FALLBACK_PRICES.values()))
+    un = CostGuard("t", "m", 0.30, False).decide(None, "/x", "quote_unavailable")
+    check("unpriceable call FAILS SAFE (approval required)",
+          un["requires_approval"] is True and un["estimated_cost"] == "unknown"
+          and un["price_source"] == "quote_unavailable")
+    check("approved runs even when unpriceable",
+          CostGuard("t", "m", 0.30, True).decide(None, "/x", "quote_unavailable") is None)
 
     class FakeResp:
         headers = {"Content-Type": "application/json"}
@@ -527,7 +574,8 @@ def test_quote_gate():
               d["quoted_total_usd"] == 0.522
               and d["quoted_calls"][0]["source"] == "live_quote")
 
-        # quote plane down: the STATIC fallback price drives the gate
+        # quote plane down: FAIL SAFE — every unapproved call is refused as
+        # unpriceable (there is no static price table to fall back on)
         def broken_quote_urlopen(req, timeout=None):
             if req.headers.get("X-aisa-cost-mode") == "quote":
                 raise ConnectionResetError("quote plane down")
@@ -535,20 +583,26 @@ def test_quote_gate():
 
         urllib.request.urlopen = broken_quote_urlopen
         c4 = m.AisaClient("k")
-        c4.set_cost_guard(CostGuard("traffic_intel", "overview", 0.30, False))
+        c4.set_cost_guard(CostGuard("social_listening", "reddit", 0.30, False))
         try:
-            c4.request("GET", "/similarweb/website-traffic-snapshot",
-                       params={"domain": "x.com"}, retries=0, retry_delay_seconds=0)
-            raise AssertionError("fallback price did not gate")
+            c4.request("GET", "/reddit/search", params={"query": "x"},
+                       retries=0, retry_delay_seconds=0)
+            raise AssertionError("unpriceable call was not refused")
         except AisaApprovalRequired as e:
-            check("quote-down falls back to the static price gate",
-                  e.notice["price_source"] == "static_fallback"
-                  and e.notice["estimated_cost"] == "$0.55")
+            check("quote-down fails safe: unpriceable call refused",
+                  e.notice["price_source"] == "quote_unavailable"
+                  and e.notice["estimated_cost"] == "unknown")
         c5 = m.AisaClient("k")
-        c5.set_cost_guard(CostGuard("social_listening", "reddit", 0.30, False))
+        c5.set_cost_guard(CostGuard("social_listening", "reddit", 0.30, True))
         out = c5.request("GET", "/reddit/search", params={"query": "x"},
                          retries=0, retry_delay_seconds=0)
-        check("cheap fallback executes when quotes are down", out == {"data": "ok"})
+        check("approved call still executes when quotes are down",
+              out == {"data": "ok"})
+        d = c5.cost_disclosure()
+        check("disclosure marks the unpriced call",
+              d["quoted_calls"][0]["source"] == "quote_unavailable"
+              and d["quoted_calls"][0]["estimated_cost_usd"] is None
+              and d["quoted_total_usd"] == 0)
 
         # account-plane calls (credential validation) are never quoted
         def account_urlopen(req, timeout=None):

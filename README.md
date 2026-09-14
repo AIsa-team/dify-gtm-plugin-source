@@ -1,7 +1,7 @@
 # AIsa Go-to-Market
 
 **Author:** aisa-team
-**Version:** 0.1.4
+**Version:** 0.2.0
 **Type:** tool
 
 Premium go-to-market data for your Dify agents — competitor traffic intelligence, keyword research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility — all through **one AIsa API key**.
@@ -16,11 +16,11 @@ Building GTM automation normally means juggling accounts, contracts, and bills f
 
 | Tool | Backed by | What your agent can do |
 |---|---|---|
-| **Web Research** | Tavily | Search the live web, extract page content, crawl a site, map its URLs |
-| **Traffic Intelligence** | Similarweb + Ahrefs | Domain traffic, engagement, audience geography and demographics, similar sites, tech stack, domain authority |
-| **Keyword & SEO** | Semrush + DataForSEO | Keyword volume, difficulty, suggestions, a domain's organic keywords and competitors, backlink profiles |
+| **Web Research** | Tavily + Firecrawl | Search the live web (with automatic provider fallback), extract page content, crawl a site, map its URLs |
+| **Traffic Intelligence** | Similarweb + Ahrefs | Domain traffic, engagement, audience geography and demographics, similar sites, tech stack, search keyword competitors, search landing pages, domain authority |
+| **Keyword, SEO & GEO** | Semrush + DataForSEO | Keyword volume, difficulty, suggestions, question keywords, broad-match ideas, AI-prompt volume (GEO), a domain's organic keywords, competitors, overview and backlink profiles |
 | **Social Listening** | X, Reddit, Instagram, Pinterest, YouTube | Search brand mentions and conversations, look up public profiles (read-only) |
-| **Find Prospects** | Apollo | Search people by title/location/company size, search companies, enrich a company from its domain |
+| **Find Prospects** | Apollo | Search people by title/location/company size, search companies, enrich a company from its domain — or up to 10 companies in one bulk call |
 | **Find Creators** | WaveInflu | Discover creators similar to a seed YouTube/TikTok profile, look up creator contact emails |
 | **AI Visibility** | Oxylabs + DataForSEO | See how ChatGPT, Gemini, Perplexity, Claude, Google AI Mode, or classic Google actually answer a buyer-style question (GEO/AEO) — six engines |
 
@@ -46,7 +46,7 @@ The plugin makes outbound HTTPS (port 443) requests to **`api.aisa.one` only** �
 ## Usage notes
 
 - **Quote-first billing**: before executing ANY call, the plugin fetches a free upstream price quote for that exact request (AIsa's `X-AISA-Cost-Mode: quote` header — nothing runs, nothing is charged). Calls quoted at or above your approval threshold (default $0.30, configurable per call) return a structured approval request instead of executing; retry with `approved=true` after the user consents. Successful responses include the quoted cost. Failed calls are not charged. When credit runs out, tools return a clear error with a top-up link instead of silently failing.
-- **Price ballparks** (live-quoted per request, so always current; audited 2026-09): social and DataForSEO calls ~$0, Tavily ~$0.03, Apollo ~$0.01, Semrush keyword difficulty ~$0.01 per keyword, Similarweb dated metrics ~$0.11, traffic snapshot/trend ~$0.52.
+- **No static price list**: upstream prices change, so this plugin publishes none — the live quote (shown in every approval request and response) is always the authority. If the quote service itself is ever unavailable, the gate fails safe: unpriceable calls are refused until explicitly approved.
 - **Traffic data lag**: Similarweb monthly metrics trail the current date by about two months. Leave the date parameters empty and the tool picks a valid recent window automatically (a stale window self-heals by advancing one month and retrying).
 - **Separators**: keyword difficulty accepts up to 20 keywords separated by `;` — search volume accepts up to 100 separated by `,`.
 - **Country targeting**: pass two-letter codes or full names ("de", "Germany") — 30+ markets are mapped for localized keyword data.

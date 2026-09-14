@@ -42,7 +42,7 @@ class WebResearchTool(Tool):
             # Quote-first cost gate — see AisaClient._enforce_cost_guard.
             client.set_cost_guard(CostGuard.from_params("web_research", mode, tool_parameters))
             if mode == "search":
-                result = client.tavily_search(query)
+                result = self._search_with_fallback(client, query)
             elif mode == "extract":
                 result = client.tavily_extract(urls)
             elif mode == "crawl":
@@ -64,6 +64,25 @@ class WebResearchTool(Tool):
             payload["cost"] = cost
         yield self.create_json_message(payload)
         yield self.create_text_message(_summarize(mode, query, urls, result))
+
+    def _search_with_fallback(self, client: AisaClient, query: str) -> Dict[str, Any]:
+        """Tavily first; on an upstream failure, retry once via Firecrawl.
+
+        The cost gate applies to BOTH attempts (each is quoted before it
+        runs), and the fallback is disclosed in the result."""
+        try:
+            return client.tavily_search(query)
+        except AisaApprovalRequired:
+            raise  # cost gate, not an upstream failure — no fallback
+        except AisaApiError:
+            result = client.request(
+                "POST", "/firecrawl/search", data={"query": query, "limit": 8}
+            )
+            if isinstance(result, dict):
+                result["provider_fallback"] = (
+                    "tavily unavailable; served via firecrawl"
+                )
+            return result
 
     def _error(self, message: str, code: str = "INVALID_INPUT") -> ToolInvokeMessage:
         return self.create_json_message({"error": {"code": code, "message": message}})

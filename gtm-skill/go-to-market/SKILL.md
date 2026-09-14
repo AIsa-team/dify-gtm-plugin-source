@@ -8,7 +8,7 @@ description: >-
   "competitor teardown", "market landscape", "who is talking about", "build a
   prospect list", "find creators/influencers", "does ChatGPT recommend",
   "keyword research", "SEO opportunities", "launch monitoring". Uses the AIsa
-  Go-to-Market tool suite (web_research, traffic_intel, keyword_seo,
+  Go-to-Market tool suite (web_research, traffic_intel, keyword_seo_geo,
   social_listening, find_prospects, find_creators, ai_visibility).
 ---
 
@@ -24,7 +24,7 @@ all backed by the AIsa unified API (one key, one bill).
 |---|---|---|
 | `web_research` | Tavily | Live web search, page extraction, site crawl/map |
 | `traffic_intel` | Similarweb + Ahrefs | Domain traffic, engagement, audience, rankings, similar sites, tech stack, domain authority |
-| `keyword_seo` | Semrush + DataForSEO | Keyword volume/difficulty/suggestions, domain keywords, organic competitors, backlinks |
+| `keyword_seo_geo` | Semrush + DataForSEO | Keyword volume/difficulty/suggestions, domain keywords, organic competitors, backlinks |
 | `social_listening` | X, Reddit, Instagram, Pinterest, YouTube | Brand mentions, launch reactions, audience conversations, public profiles |
 | `find_prospects` | Apollo | People search by title/location/company-size, company search, company enrichment |
 | `find_creators` | WaveInflu | Similar-creator discovery (YouTube/TikTok), creator contact email lookup |
@@ -39,13 +39,13 @@ all backed by the AIsa unified API (one key, one bill).
    their source tool; interpretation is labeled as yours.
 3. **Timestamp everything.** Traffic data lags ~2 months (say which months you
    got). Social and AI-visibility results are live (say "as of today").
-4. **Mind the meter.** Every call spends API credit — and costs vary 450x:
-   | Cost | Calls |
-   |---|---|
-   | Free | traffic_intel overview, trend |
-   | ~$0.001–0.01 | ai_visibility, social_listening, web_research, keyword suggestions/volume, prospects |
-   | ~$0.02–0.10 | find_creators, similarweb dated metrics, domain keywords |
-   | **$0.36–0.45** | **domain_competitors, keyword_difficulty** — use once, batched, never per-keyword |
+4. **Mind the meter.** Every call spends API credit, and prices change
+   upstream — so there is NO static price list: the plugin fetches a free
+   live quote for each exact call before executing it. A quote at or above
+   the user's approval threshold (default $0.30) comes back as a
+   requires_approval JSON instead of data — relay it, get consent, retry the
+   same call with approved=true. Never set approved=true unprompted.
+   Successful responses carry a "cost" field with the quoted spend.
    Batch keywords into one `search_volume` call (up to 100, comma-separated)
    and one `keyword_difficulty` call (up to 20, semicolon-separated). Plan the
    minimal call set before starting; typically 3–8 calls per playbook.
@@ -63,7 +63,7 @@ Run independent calls in parallel when the platform allows it.
 1. `traffic_intel(domain=X, metric=overview)` — size the traffic.
 2. `traffic_intel(domain=X, metric=similar_sites)` — discover the competitive set.
 3. `traffic_intel(domain=X, metric=geographies)` — where the audience lives.
-4. `keyword_seo(metric=domain_competitors, domain=X)` — organic-search rivals
+4. `keyword_seo_geo(metric=domain_competitors, domain=X)` — organic-search rivals
    (often differ from traffic rivals; note the difference).
 5. For the top 2–3 competitors found: `traffic_intel(metric=overview)` each.
 6. Optional depth: `web_research(mode=extract, urls=<pricing/product pages>)`
@@ -74,11 +74,11 @@ recommendation per competitor.
 
 ### 2. Keyword opportunity map — "what keywords should we target"
 
-1. `keyword_seo(metric=keyword_suggestions, keyword=<seed>)` — expand the seed.
-2. `keyword_seo(metric=search_volume, keyword=<top ~20 ideas, comma-separated>)`
+1. `keyword_seo_geo(metric=keyword_suggestions, keyword=<seed>)` — expand the seed.
+2. `keyword_seo_geo(metric=search_volume, keyword=<top ~20 ideas, comma-separated>)`
    — one batched call, never one call per keyword.
-3. `keyword_seo(metric=keyword_difficulty, keyword=<shortlist, semicolon-separated, max 20>)`.
-4. `keyword_seo(metric=domain_keywords, domain=<our or rival domain>)` — find
+3. `keyword_seo_geo(metric=keyword_difficulty, keyword=<shortlist, semicolon-separated, max 20>)`.
+4. `keyword_seo_geo(metric=domain_keywords, domain=<our or rival domain>)` — find
    gaps: keywords rivals rank for that we don't.
 
 Deliver: a table of keyword → volume → difficulty → intent guess → verdict

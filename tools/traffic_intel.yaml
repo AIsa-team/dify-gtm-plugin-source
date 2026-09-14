@@ -12,7 +12,7 @@ description:
     zh_Hans: "网站流量、互动、受众、排名、相似网站、技术栈与域名权重——由 AIsa 提供的 Similarweb 与 Ahrefs 数据。"
     pt_BR: "Tráfego do site, engajamento, audiência, rankings, sites similares, stack de tecnologia e autoridade de domínio — via Similarweb e Ahrefs pela AIsa."
     ja_JP: "ウェブサイトのトラフィック、エンゲージメント、オーディエンス、ランキング、類似サイト、技術スタック、ドメインオーソリティ——AIsa経由のSimilarwebとAhrefs。"
-  llm: "Get competitive intelligence about any website domain. Metrics: 'overview' (traffic snapshot), 'trend' (traffic over time), 'engagement' (visits, pages per visit), 'ranking' (global/category rank), 'geographies' (top visitor countries), 'demographics' (visitor age/gender), 'similar_sites' (competitor sites), 'technologies' (tech stack), 'popular_pages' (top pages), 'domain_authority' (Ahrefs domain rating and backlink metrics). Use for competitor analysis and market sizing."
+  llm: "Get competitive intelligence about any website domain. Metrics: 'overview' (traffic snapshot), 'trend' (traffic over time), 'engagement' (visits, pages per visit), 'ranking' (global/category rank), 'geographies' (top visitor countries), 'demographics' (visitor age/gender), 'similar_sites' (competitor sites), 'technologies' (tech stack), 'popular_pages' (top pages), 'keyword_competitors' (sites competing for the same search keywords), 'landing_pages' (where the domain's search traffic lands), 'domain_authority' (Ahrefs domain rating and backlink metrics). Use for competitor analysis and market sizing."
 parameters:
   - name: domain
     type: string
@@ -57,6 +57,12 @@ parameters:
       - value: popular_pages
         label:
           en_US: "Popular pages"
+      - value: keyword_competitors
+        label:
+          en_US: "Search keyword competitors"
+      - value: landing_pages
+        label:
+          en_US: "Search landing pages"
       - value: domain_authority
         label:
           en_US: "Domain authority (Ahrefs)"

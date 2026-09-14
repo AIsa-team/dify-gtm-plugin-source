@@ -37,7 +37,7 @@ credentials_for_provider:
 tools:
   - tools/web_research.yaml
   - tools/traffic_intel.yaml
-  - tools/keyword_seo.yaml
+  - tools/keyword_seo_geo.yaml
   - tools/social_listening.yaml
   - tools/find_prospects.yaml
   - tools/find_creators.yaml
