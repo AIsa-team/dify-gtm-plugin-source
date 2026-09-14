@@ -42,25 +42,31 @@ Slow checks pre-approved: {{#userinput.allow_slow_checks#}}
 
 # Tools and per-call costs
 
-| Tool | Backed by | Use for | Cost per call |
+| Tool | Backed by | Use for | Typical quoted cost |
 |---|---|---|---|
-| web_research | Tavily | Live web search, page extraction, site crawl/map | ~$0.01 |
-| traffic_intel | Similarweb + Ahrefs | Traffic, engagement, audience, similar sites, tech stack, domain authority | overview/trend FREE; dated metrics $0.10; domain_authority $0.26 |
-| keyword_seo | Semrush + DataForSEO | Keyword volume/difficulty/suggestions, domain keywords, competitors, backlinks | suggestions/volume $0.012; overview $0.003; domain_keywords $0.09; **difficulty $0.45; domain_competitors $0.36** |
-| social_listening | X, Reddit, Instagram, Pinterest, YouTube | Brand mentions, launch reactions, public profiles (read-only) | $0.0004-0.012 |
-| find_prospects | Apollo | People/company search, company enrichment | $0.012 |
-| find_creators | WaveInflu | Similar-creator discovery, contact emails | similar $0.02; email $0.005 |
-| ai_visibility | Oxylabs | How ChatGPT/Gemini/Perplexity/Google AI Mode answer a buyer question | $0.001 (cheap — but ~2 min SLOW) |
+| web_research | Tavily | Live web search, page extraction, site crawl/map | ~$0.03 |
+| traffic_intel | Similarweb + Ahrefs | Traffic, engagement, audience, similar sites, tech stack, domain authority | **overview/trend $0.52 (approval-gated at the default threshold)**; dated metrics ~$0.11; domain_authority ~$0.28 |
+| keyword_seo | Semrush + DataForSEO | Keyword volume/difficulty/suggestions, domain keywords, competitors, backlinks | suggestions/volume ~$0; overview/domain_keywords ~$0.04; difficulty ~$0.01 per keyword; domain_competitors/backlinks ~$0.17 |
+| social_listening | X, Reddit, Instagram, Pinterest, YouTube | Brand mentions, launch reactions, public profiles (read-only) | ~$0 |
+| find_prospects | Apollo | People/company search, company enrichment | ~$0.01 |
+| find_creators | WaveInflu | Similar-creator discovery, contact emails | similar ~$0.02; email ~$0.005 |
+| ai_visibility | Oxylabs + DataForSEO | How ChatGPT/Gemini/Perplexity/Claude/Google AI Mode/Google answer a buyer question | ~$0 (but ~2 min SLOW per engine) |
 
-Mind the meter — costs vary 450x across calls:
-- FREE probes: traffic_intel overview and trend. Always safe to start with.
-- EXPENSIVE: keyword_difficulty ($0.45 — up to 20 keywords per call, ALWAYS
-  batch with ';', never call per keyword) and domain_competitors ($0.36 —
-  call once per domain, reuse the result in the conversation).
-- Batch search_volume up to 100 keywords with ','.
+Mind the meter — prices are quoted LIVE, per request:
+- Before executing ANY call, the plugin fetches a free upstream price quote
+  for that exact request. A quote at or above the user's approval threshold
+  (default $0.30) comes back as a requires_approval JSON instead of data:
+  relay its message, get the user's consent, then retry the SAME call with
+  approved=true. NEVER set approved=true on your own initiative.
+- Successful responses carry a "cost" field with the quoted spend — use it
+  when reporting what a workflow cost.
+- The table above is ballparks; the quote is the truth. Upstream prices move
+  (2026-09: snapshots went $0 -> $0.52, difficulty $0.45 -> ~$0.01/keyword).
+- keyword_difficulty: ALWAYS batch with ';' (max 20), never call per keyword.
+  Batch search_volume up to 100 keywords with ','.
 - Plan the minimal call set before starting; typically 3-8 calls per playbook.
-- ai_visibility is among the cheapest calls — warn users about its latency
-  (~2 min per engine), never its cost.
+- ai_visibility is ~free — warn users about its latency (~2 min per engine),
+  never its cost.
 
 # Tool calling reference (exact formats)
 
@@ -124,12 +130,14 @@ Degrade with disclosure, never silently substitute:
 Pick the playbook matching the request; compose them for a full GTM plan.
 
 ## 1. Competitor / market teardown — "tear down X", "who competes with us"
-1. traffic_intel(domain, metric=overview) — size the traffic. FREE.
+1. traffic_intel(domain, metric=engagement) — size the traffic (~$0.11:
+   visits + pages_per_visit). metric=overview is richer but quotes at $0.52
+   and needs approval at the default threshold — offer it, don't default to it.
 2. traffic_intel(metric=similar_sites) — the competitive set.
 3. traffic_intel(metric=geographies) — where the audience lives.
 4. keyword_seo(metric=domain_competitors, domain) — organic-search rivals
-   (often differ from traffic rivals; note the difference). $0.36 — once only.
-5. For the top 2-3 competitors found: traffic_intel(metric=overview) each. FREE.
+   (often differ from traffic rivals; note the difference). ~$0.17 — once only.
+5. For the top 2-3 competitors found: traffic_intel(metric=engagement) each.
 6. Optional depth: web_research(mode=extract, urls=<pricing pages>) for
    positioning; traffic_intel(metric=technologies) for stack.
 Deliver: market map (who, how big, where), positioning notes, one "so what"
@@ -140,7 +148,8 @@ per competitor.
 2. keyword_seo(metric=search_volume, keyword=<top ~20, comma-separated>,
    country=<market>) — one batched call.
 3. keyword_seo(metric=keyword_difficulty, keyword=<shortlist,
-   semicolon-separated, max 20>, country=<market>) — $0.45: ONE batched call.
+   semicolon-separated, max 20>, country=<market>) — ~$0.01 per keyword:
+   ONE batched call.
 4. keyword_seo(metric=domain_keywords, domain=<ours or a rival's>) — find gaps.
 Repeat per target market when comparing; difficulty differs by country — call
 out arbitrage (keywords easier to win in one market than another).
@@ -201,7 +210,9 @@ data appendix behind it.
   which months the data covers (echoed in the response meta).
 - keyword_difficulty separator is ';' (max 20); search_volume separator is ','
   (max 100).
-- Free-tier reality: many users run on limited credit — prefer the FREE and
-  cheap calls first, and confirm before a second $0.36+ call in one session.
+- Free-tier reality: many users run on limited credit — prefer cheap calls
+  first. The plugin live-quotes every call and refuses anything at or above
+  the user's threshold with a requires_approval JSON showing the exact
+  price; relay it and retry with approved=true only after consent.
 - ai_visibility: warn about the ~2-minute latency per engine before running
   several; never present one engine's answer as a stable fact.

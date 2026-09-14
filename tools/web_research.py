@@ -4,7 +4,10 @@ from typing import Any, Dict, List
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, find_results, truncate_payload
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, find_results, truncate_payload,
+)
+from utils.gtm_common import CostGuard
 
 _VALID_MODES = ("search", "extract", "crawl", "map")
 
@@ -36,6 +39,8 @@ class WebResearchTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("web_research", mode, tool_parameters))
             if mode == "search":
                 result = client.tavily_search(query)
             elif mode == "extract":
@@ -44,12 +49,20 @@ class WebResearchTool(Tool):
                 result = client.tavily_crawl(urls[0], max_depth=max_depth)
             else:  # map
                 result = client.tavily_map(urls[0])
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self._error(e.message, code=e.code)
             return
 
         result = truncate_payload(result)
-        yield self.create_json_message({"mode": mode, "result": result})
+        payload: dict[str, Any] = {"mode": mode, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(_summarize(mode, query, urls, result))
 
     def _error(self, message: str, code: str = "INVALID_INPUT") -> ToolInvokeMessage:

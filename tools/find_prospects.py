@@ -4,7 +4,10 @@ from typing import Any, List
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard
 
 _SEARCH_TYPES = ("people", "companies", "enrich_company")
 
@@ -60,6 +63,8 @@ class FindProspectsTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("find_prospects", search_type, tool_parameters))
             if search_type == "people":
                 params: dict[str, Any] = {"per_page": 10, "page": 1}
                 if job_titles:
@@ -92,12 +97,20 @@ class FindProspectsTool(Tool):
                 result = client.request(
                     "GET", "/apollo/organizations/enrich", params={"domain": domain}
                 )
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return
 
         result = truncate_payload(result, max_field_chars=3000)
-        yield self.create_json_message({"search_type": search_type, "result": result})
+        payload: dict[str, Any] = {"search_type": search_type, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(
             generic_summary(f"Prospecting — {search_type}:", result, max_items=10)
         )

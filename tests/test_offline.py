@@ -235,10 +235,19 @@ def test_audit_wiring():
     import json as _json
     baseline = _json.load(open(os.path.join(ROOT, "tests", "contracts_baseline.json")))
     check("baseline covers 36 tools", len(baseline) == 36, f"got {len(baseline)}")
+    check("baseline uses the BATCH_GET_SCHEMA-era fields",
+          all({"schema_sha256", "pitfalls_sha256", "properties", "required"}
+              <= set(entry) for entry in baseline.values()))
     sys.path.insert(0, os.path.join(ROOT, "tests"))
     import contract_audit
     check("audit SENT map covers every baseline tool",
           set(contract_audit.SENT) == set(baseline))
+    check("audit targets the current router meta-tool",
+          "AISA_BATCH_GET_SCHEMA" in open(
+              os.path.join(ROOT, "tests", "contract_audit.py")).read())
+    from utils.gtm_common import FALLBACK_PRICES
+    check("every quote canary maps to a fallback price",
+          all(key in FALLBACK_PRICES for key, *_ in contract_audit.QUOTE_CANARIES))
 
 
 def test_gtm_common():
@@ -267,35 +276,45 @@ def test_tool_helpers():
         spec.loader.exec_module(mod)
         return mod
 
-    from utils.gtm_common import approval_notice, parse_threshold
+    from utils.gtm_common import parse_threshold
     check("threshold parses and defaults", parse_threshold("0.10") == 0.10
           and parse_threshold(None) == 0.30 and parse_threshold("junk") == 0.30)
-    check("default threshold gates difficulty",
-          approval_notice("keyword_seo", "keyword_difficulty", {})["estimated_cost"] == "$0.45")
-    check("default threshold passes domain_authority (0.26 < 0.30)",
-          approval_notice("traffic_intel", "domain_authority", {}) is None)
-    check("low threshold gates dated similarweb metrics",
-          approval_notice("traffic_intel", "similar_sites", {"approval_threshold": 0.10}) is not None)
-    check("free metrics never gated even at threshold 0",
-          approval_notice("traffic_intel", "overview", {"approval_threshold": 0}) is None)
-    check("approved=true always passes",
-          approval_notice("keyword_seo", "keyword_difficulty", {"approved": True}) is None)
 
+    # Tool wiring: the tool attaches a CostGuard and surfaces an approval
+    # notice (raised by the client's quote-first gate) instead of executing.
     ks = load("keyword_seo")
     tool = object.__new__(ks.KeywordSeoTool)
     tool.create_json_message = lambda d: ("json", d)
     tool.create_text_message = lambda t: ("text", t)
-    out = list(tool._invoke({"metric": "keyword_difficulty", "keyword": "crm; helpdesk"}))
-    check("premium metric without approval is refused (no API call)",
-          out[0][1].get("requires_approval") is True and "$0.45" in out[0][1]["estimated_cost"])
-    out = list(tool._invoke({"metric": "domain_competitors", "domain": "x.com"}))
-    check("domain_competitors gated too", out[0][1].get("requires_approval") is True)
+    tool.runtime = types.SimpleNamespace(credentials={"aisa_api_key": "sk-test"})
+
+    notice = {"requires_approval": True, "metric": "keyword_difficulty",
+              "estimated_cost": "$0.52", "message": "needs approval"}
+    guards = []
+
+    class GatingClient:
+        def __init__(self, key):
+            pass
+
+        def set_cost_guard(self, guard):
+            guards.append(guard)
+
+        def request(self, *a, **kw):
+            raise ks.AisaApprovalRequired(dict(notice))
+
+    real_client = ks.AisaClient
+    ks.AisaClient = GatingClient
     try:
-        out = list(tool._invoke({"metric": "keyword_overview", "keyword": "crm"}))
-        gated = isinstance(out[0][1], dict) and out[0][1].get("requires_approval")
-    except AttributeError:
-        gated = False  # reached the client stage (stub has no runtime) => passed the gate
-    check("cheap metrics not gated", not gated)
+        out = list(tool._invoke({"metric": "keyword_difficulty",
+                                 "keyword": "crm; helpdesk",
+                                 "approval_threshold": "0.10"}))
+    finally:
+        ks.AisaClient = real_client
+    check("tool attaches a cost guard with the metric + threshold",
+          guards and guards[0].metric == "keyword_difficulty"
+          and guards[0].threshold == 0.10)
+    check("approval notice surfaced instead of executing",
+          out[0][1].get("requires_approval") is True and out[1][0] == "text")
 
     fp = load("find_prospects")
     check("title splitting", fp._split("CEO, VP Marketing") == ["CEO", "VP Marketing"])
@@ -350,12 +369,18 @@ def test_tool_helpers():
                 raise AisaApiError("400", "Dates not in range (error 101)")
             return {"data": [1]}
 
-    # single-month window anchored to latest published month
+    # The snapshot anchor probe is no longer free upstream ($0.52) — it only
+    # runs on pre-approved calls; otherwise the free lagged default is used.
+    c = StubClient()
+    s, e = ti._resolve_window(c, "x.com", "ww", {"approved": True}, span=1)
+    check("approved span=1 window anchors to latest via probe",
+          (s, e) == ("2026-07", "2026-07"))
+    s, e = ti._resolve_window(c, "x.com", "ww", {"approved": True}, span=3)
+    check("approved span=3 window covers 3 months", (s, e) == ("2026-05", "2026-07"))
     c = StubClient()
     s, e = ti._resolve_window(c, "x.com", "ww", {}, span=1)
-    check("span=1 window is one month at latest", (s, e) == ("2026-07", "2026-07"))
-    s, e = ti._resolve_window(c, "x.com", "ww", {}, span=3)
-    check("span=3 window covers 3 months", (s, e) == ("2026-05", "2026-07"))
+    check("unapproved window skips the paid probe (no snapshot call)",
+          c.calls == [] and s == e)
     s, e = ti._resolve_window(c, "x.com", "ww", {"start_date": "2026-01", "end_date": "2026-01"}, span=1)
     check("user dates respected verbatim", (s, e) == ("2026-01", "2026-01"))
 
@@ -383,6 +408,9 @@ def test_yaml_wiring():
         td = yaml.safe_load(open(os.path.join(ROOT, t)))
         src = os.path.join(ROOT, td["extra"]["python"]["source"])
         check(f"{td['identity']['name']} source exists", os.path.exists(src))
+        param_names = {p["name"] for p in td.get("parameters", [])}
+        check(f"{td['identity']['name']} exposes the cost gate params",
+              {"approved", "approval_threshold"} <= param_names)
     creds = prov["credentials_for_provider"]["aisa_api_key"]
     check("credential links to GTM plan page",
           "aisa.one/solutions/go-to-market" in creds["url"])
@@ -399,6 +427,143 @@ def test_yaml_wiring():
           and not os.path.exists(os.path.join(ROOT, "README_zh_Hans.md")))
 
 
+def test_quote_gate():
+    """Quote-first price gate: client quotes upstream, guard decides."""
+    import utils.aisa_client as m
+    from utils.aisa_client import AisaApiError, AisaApprovalRequired
+    from utils.gtm_common import CostGuard, DEFAULT_FALLBACK_PRICE, FALLBACK_PRICES
+
+    # CostGuard decision matrix
+    g = CostGuard.from_params("keyword_seo", "keyword_difficulty", {})
+    check("guard defaults: threshold 0.30, not approved",
+          g.threshold == 0.30 and not g.approved)
+    check("live price under threshold passes",
+          g.decide(0.0087, "/x", "live_quote") is None)
+    n = g.decide(0.522, "/similarweb/website-traffic-snapshot", "live_quote")
+    check("live price at/above threshold gates",
+          n["requires_approval"] is True and n["estimated_cost"] == "$0.52")
+    check("notice names endpoint and price source",
+          n["endpoint"].endswith("snapshot") and n["price_source"] == "live_quote")
+    check("free price never gated even at threshold 0",
+          CostGuard("t", "m", 0.0, False).decide(0.0, "/x", "live_quote") is None)
+    check("approved bypasses the gate",
+          CostGuard.from_params("t", "m", {"approved": True}).decide(9.99, "/x", "live_quote") is None)
+    check("fallback price for known metric",
+          CostGuard("traffic_intel", "overview", 0.3, False).fallback_price == 0.55)
+    check("unknown metric fallback is never free",
+          CostGuard("t", "nope", 0.3, False).fallback_price == DEFAULT_FALLBACK_PRICE
+          and DEFAULT_FALLBACK_PRICE > 0)
+    check("no fallback entry is free (stale table must ask, not spend)",
+          all(p > 0 for p in FALLBACK_PRICES.values()))
+
+    class FakeResp:
+        headers = {"Content-Type": "application/json"}
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def read(self):
+            return json.dumps(self._payload).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    estimate = {"object": "cost_estimate", "estimated_cost_micros_usd": 522000}
+    captured = {"payload": estimate}
+    original = urllib.request.urlopen
+
+    def fake_urlopen(req, timeout=None):
+        captured["mode"] = req.headers.get("X-aisa-cost-mode")
+        return FakeResp(captured["payload"])
+
+    urllib.request.urlopen = fake_urlopen
+    try:
+        c = m.AisaClient("k")
+        q = c.quote("GET", "/similarweb/website-traffic-snapshot",
+                    params={"domain": "x.com"})
+        check("quote sends X-AISA-Cost-Mode: quote", captured["mode"] == "quote")
+        check("quote parses estimated micros", q["estimated_cost_micros_usd"] == 522000)
+        captured["payload"] = {"ok": True}
+        try:
+            c.quote("GET", "/x")
+            raise AssertionError("non-estimate body accepted as quote")
+        except AisaApiError as e:
+            check("non-estimate body -> QUOTE_UNAVAILABLE", e.code == "QUOTE_UNAVAILABLE")
+
+        # request() with a guard: gated BEFORE execution
+        captured["payload"] = estimate
+        c2 = m.AisaClient("k")
+        c2.set_cost_guard(CostGuard("traffic_intel", "overview", 0.30, False))
+        try:
+            c2.request("GET", "/similarweb/website-traffic-snapshot",
+                       params={"domain": "x.com"})
+            raise AssertionError("expensive call not gated")
+        except AisaApprovalRequired as e:
+            check("request() raises approval instead of executing",
+                  e.notice["estimated_cost"] == "$0.52"
+                  and e.notice["price_source"] == "live_quote")
+
+        # approved guard: quote recorded, real call executes
+        calls = {"n": 0}
+
+        def counting_urlopen(req, timeout=None):
+            calls["n"] += 1
+            if req.headers.get("X-aisa-cost-mode") == "quote":
+                return FakeResp(estimate)
+            return FakeResp({"data": {"month": "2026-08"}})
+
+        urllib.request.urlopen = counting_urlopen
+        c3 = m.AisaClient("k")
+        c3.set_cost_guard(CostGuard("traffic_intel", "overview", 0.30, True))
+        out = c3.request("GET", "/similarweb/website-traffic-snapshot",
+                         params={"domain": "x.com"})
+        check("approved call quotes first, then executes",
+              calls["n"] == 2 and out["data"]["month"] == "2026-08")
+        d = c3.cost_disclosure()
+        check("cost disclosure records the live quote",
+              d["quoted_total_usd"] == 0.522
+              and d["quoted_calls"][0]["source"] == "live_quote")
+
+        # quote plane down: the STATIC fallback price drives the gate
+        def broken_quote_urlopen(req, timeout=None):
+            if req.headers.get("X-aisa-cost-mode") == "quote":
+                raise ConnectionResetError("quote plane down")
+            return FakeResp({"data": "ok"})
+
+        urllib.request.urlopen = broken_quote_urlopen
+        c4 = m.AisaClient("k")
+        c4.set_cost_guard(CostGuard("traffic_intel", "overview", 0.30, False))
+        try:
+            c4.request("GET", "/similarweb/website-traffic-snapshot",
+                       params={"domain": "x.com"}, retries=0, retry_delay_seconds=0)
+            raise AssertionError("fallback price did not gate")
+        except AisaApprovalRequired as e:
+            check("quote-down falls back to the static price gate",
+                  e.notice["price_source"] == "static_fallback"
+                  and e.notice["estimated_cost"] == "$0.55")
+        c5 = m.AisaClient("k")
+        c5.set_cost_guard(CostGuard("social_listening", "reddit", 0.30, False))
+        out = c5.request("GET", "/reddit/search", params={"query": "x"},
+                         retries=0, retry_delay_seconds=0)
+        check("cheap fallback executes when quotes are down", out == {"data": "ok"})
+
+        # account-plane calls (credential validation) are never quoted
+        def account_urlopen(req, timeout=None):
+            captured["acct_mode"] = req.headers.get("X-aisa-cost-mode")
+            return FakeResp({"available_balance_micros_usd": 1})
+
+        urllib.request.urlopen = account_urlopen
+        c6 = m.AisaClient("k")
+        c6.set_cost_guard(CostGuard("t", "m", 0.0, False))
+        c6.credits_balance()
+        check("account-plane calls skip quoting", captured["acct_mode"] is None)
+    finally:
+        urllib.request.urlopen = original
+
+
 def test_readme_rules():
     readme = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
     has_cjk = any("一" <= ch <= "鿿" for ch in readme)
@@ -411,7 +576,8 @@ def test_readme_rules():
 if __name__ == "__main__":
     for fn in [test_client_errors, test_delimited_text, test_truncation_and_summary,
                test_request_headers, test_contract_fallback, test_audit_wiring,
-               test_gtm_common, test_tool_helpers, test_yaml_wiring, test_readme_rules]:
+               test_gtm_common, test_tool_helpers, test_quote_gate,
+               test_yaml_wiring, test_readme_rules]:
         print(fn.__name__)
         fn()
     print(f"\nAll {PASSED} checks passed.")

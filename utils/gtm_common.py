@@ -112,27 +112,59 @@ def semrush_database(country: str) -> str:
     return normalize_country(country)
 
 
-# --- Human-in-the-loop price gate -----------------------------------------
-# Per-call prices from AIsa's live pricing overlay (audited 2026-09).
-CALL_PRICES = {
-    ("keyword_seo", "keyword_overview"): 0.003,
-    ("keyword_seo", "keyword_suggestions"): 0.012,
-    ("keyword_seo", "search_volume"): 0.012,
-    ("keyword_seo", "domain_keywords"): 0.09,
-    ("keyword_seo", "backlinks_overview"): 0.01,
-    ("keyword_seo", "keyword_difficulty"): 0.45,
-    ("keyword_seo", "domain_competitors"): 0.36,
-    ("traffic_intel", "overview"): 0.0,
-    ("traffic_intel", "trend"): 0.0,
-    ("traffic_intel", "engagement"): 0.10,
-    ("traffic_intel", "ranking"): 0.10,
-    ("traffic_intel", "geographies"): 0.10,
-    ("traffic_intel", "demographics"): 0.10,
-    ("traffic_intel", "similar_sites"): 0.10,
-    ("traffic_intel", "technologies"): 0.10,
-    ("traffic_intel", "popular_pages"): 0.10,
-    ("traffic_intel", "domain_authority"): 0.26,
+# --- Human-in-the-loop price gate (quote-first) ----------------------------
+# Every data-plane request is price-quoted upstream FIRST — free, via the
+# gateway's 'X-AISA-Cost-Mode: quote' header — and the LIVE quote drives the
+# approval gate (AisaClient._enforce_cost_guard). The table below is only the
+# fallback for when the quote plane itself is unavailable. Values re-audited
+# 2026-09-14 against live quotes and deliberately rounded UP, so a stale
+# fallback asks for approval rather than silently spending.
+#
+# Upstream repricing observed 2026-09-14 (why quotes must lead):
+#   traffic snapshot $0 -> $0.522 · Semrush difficulty $0.45 -> ~$0.009/kw
+#   · backlinks overview $0.01 -> $0.174 · Tavily/DataForSEO -> ~$0.
+FALLBACK_PRICES = {
+    ("web_research", "search"): 0.04,
+    ("web_research", "extract"): 0.04,
+    ("web_research", "crawl"): 0.08,
+    ("web_research", "map"): 0.04,
+    ("keyword_seo", "keyword_overview"): 0.06,
+    ("keyword_seo", "keyword_suggestions"): 0.02,
+    ("keyword_seo", "search_volume"): 0.02,
+    ("keyword_seo", "domain_keywords"): 0.06,
+    ("keyword_seo", "backlinks_overview"): 0.21,
+    ("keyword_seo", "keyword_difficulty"): 0.21,
+    ("keyword_seo", "domain_competitors"): 0.21,
+    ("traffic_intel", "overview"): 0.55,
+    ("traffic_intel", "trend"): 0.55,
+    ("traffic_intel", "engagement"): 0.14,
+    ("traffic_intel", "ranking"): 0.14,
+    ("traffic_intel", "geographies"): 0.14,
+    ("traffic_intel", "demographics"): 0.14,
+    ("traffic_intel", "similar_sites"): 0.14,
+    ("traffic_intel", "technologies"): 0.14,
+    ("traffic_intel", "popular_pages"): 0.14,
+    ("traffic_intel", "domain_authority"): 0.15,  # per Ahrefs call; 2 calls/metric
+    ("social_listening", "x"): 0.02,
+    ("social_listening", "reddit"): 0.02,
+    ("social_listening", "instagram"): 0.02,
+    ("social_listening", "pinterest"): 0.02,
+    ("social_listening", "youtube"): 0.02,
+    ("find_prospects", "people"): 0.02,
+    ("find_prospects", "companies"): 0.02,
+    ("find_prospects", "enrich_company"): 0.02,
+    ("find_creators", "similar"): 0.05,
+    ("find_creators", "email"): 0.05,
+    ("ai_visibility", "chatgpt"): 0.03,
+    ("ai_visibility", "gemini"): 0.03,
+    ("ai_visibility", "perplexity"): 0.03,
+    ("ai_visibility", "claude"): 0.03,
+    ("ai_visibility", "google_ai_mode"): 0.03,
+    ("ai_visibility", "google_search"): 0.03,
 }
+
+# Unknown (tool, metric) pairs assume a modest per-call price, never free.
+DEFAULT_FALLBACK_PRICE = 0.05
 
 DEFAULT_APPROVAL_THRESHOLD = 0.30
 
@@ -146,25 +178,55 @@ def parse_threshold(raw) -> float:
         return DEFAULT_APPROVAL_THRESHOLD
 
 
-def approval_notice(tool: str, metric: str, tool_parameters: dict):
-    """Return a requires_approval notice dict when this call must be approved
-    first, else None. Gates calls costing AT LEAST the threshold. Free —
-    evaluated before any API call."""
-    if tool_parameters.get("approved"):
-        return None
-    price = CALL_PRICES.get((tool, metric), 0.0)
-    threshold = parse_threshold(tool_parameters.get("approval_threshold"))
-    if price < threshold or price <= 0:
-        return None
-    return {
-        "requires_approval": True,
-        "metric": metric,
-        "estimated_cost": f"${price:.2f}",
-        "approval_threshold": f"${threshold:.2f}",
-        "message": (
-            f"'{metric}' costs ${price:.2f}, at or above the approval threshold "
-            f"(${threshold:.2f}). No data was fetched and nothing was charged. "
-            "Get the user's approval, then retry this exact call with "
-            "approved=true. Never set approved=true without the user's consent."
-        ),
-    }
+class CostGuard:
+    """Per-invocation price gate, consulted by AisaClient before EVERY call.
+
+    The client quotes each request upstream (free) and asks this guard to
+    decide; the guard returns a structured approval notice when the price is
+    at or above the user's threshold and the call wasn't pre-approved."""
+
+    def __init__(self, tool: str, metric: str, threshold: float, approved: bool):
+        self.tool = tool
+        self.metric = metric
+        self.threshold = threshold
+        self.approved = approved
+
+    @classmethod
+    def from_params(cls, tool: str, metric: str, tool_parameters: dict) -> "CostGuard":
+        return cls(
+            tool,
+            metric,
+            parse_threshold(tool_parameters.get("approval_threshold")),
+            bool(tool_parameters.get("approved")),
+        )
+
+    @property
+    def fallback_price(self) -> float:
+        """Static estimate used ONLY when the live quote is unavailable."""
+        return FALLBACK_PRICES.get((self.tool, self.metric), DEFAULT_FALLBACK_PRICE)
+
+    def decide(self, price_usd: float, endpoint: str, source: str):
+        """Approval notice dict when the call must be approved first, else None."""
+        if self.approved:
+            return None
+        if price_usd <= 0 or price_usd < self.threshold:
+            return None
+        priced_via = (
+            "live upstream quote" if source == "live_quote"
+            else "estimate — live quote unavailable"
+        )
+        return {
+            "requires_approval": True,
+            "metric": self.metric,
+            "endpoint": endpoint,
+            "estimated_cost": f"${price_usd:.2f}",
+            "price_source": source,
+            "approval_threshold": f"${self.threshold:.2f}",
+            "message": (
+                f"'{self.metric}' is priced at ${price_usd:.2f} ({priced_via}), "
+                f"at or above the approval threshold (${self.threshold:.2f}). "
+                "No data was fetched and nothing was charged. Get the user's "
+                "approval, then retry this exact call with approved=true. "
+                "Never set approved=true without the user's consent."
+            ),
+        }

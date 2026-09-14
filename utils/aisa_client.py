@@ -61,6 +61,18 @@ class AisaCreditError(AisaApiError):
     """Plan credit or quota exhausted."""
 
 
+class AisaApprovalRequired(AisaApiError):
+    """The live price quote meets the user's approval threshold.
+
+    Raised BEFORE the billable request is made — nothing was executed and
+    nothing was charged. ``.notice`` carries the structured approval request
+    for the agent/user."""
+
+    def __init__(self, notice: Dict[str, Any]):
+        self.notice = notice
+        super().__init__("APPROVAL_REQUIRED", notice.get("message", "Approval required."))
+
+
 def _classify_and_raise(code: str, message: str) -> None:
     """Map an API error to the right typed exception, with an actionable hint."""
     haystack = f"{code} {message}".upper()
@@ -122,6 +134,78 @@ class AisaClient:
         if not api_key:
             raise AisaAuthError("MISSING_KEY", AUTH_HINT)
         self.api_key = api_key
+        # Quote-first price gate (see set_cost_guard / _enforce_cost_guard).
+        self.cost_guard = None
+        self.call_quotes: List[Dict[str, Any]] = []
+
+    # ------------------------------------------------------------ price gate
+
+    def set_cost_guard(self, guard) -> None:
+        """Attach a per-invocation CostGuard (utils.gtm_common). Once set,
+        every data-plane request is price-quoted upstream FIRST (free) and
+        refused with AisaApprovalRequired when the quote meets the user's
+        approval threshold."""
+        self.cost_guard = guard
+
+    def quote(
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        timeout: int = 30,
+    ) -> Dict[str, Any]:
+        """Free price quote for the EXACT request about to be made.
+
+        AIsa's gateway returns a cost_estimate body (no execution, no charge)
+        when the request carries 'X-AISA-Cost-Mode: quote' — verified live
+        2026-09-14: quotes match actual billing, unlike the catalog overlay."""
+        body = self._request_once(
+            method, endpoint, params, data, timeout=timeout, retries=0,
+            extra_headers={"X-AISA-Cost-Mode": "quote"},
+        )
+        if not (isinstance(body, dict) and body.get("object") == "cost_estimate"):
+            raise AisaApiError(
+                "QUOTE_UNAVAILABLE", "The endpoint did not return a cost estimate."
+            )
+        return body
+
+    def _enforce_cost_guard(
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict[str, Any]],
+        data: Optional[Dict[str, Any]],
+    ) -> None:
+        """Quote the request and apply the guard. Falls back to the static
+        price table only when the quote plane itself is unavailable."""
+        guard = self.cost_guard
+        source = "live_quote"
+        try:
+            estimate = self.quote(method, endpoint, params, data)
+            price_usd = float(estimate.get("estimated_cost_micros_usd") or 0) / 1_000_000
+        except AisaApiError:
+            price_usd = guard.fallback_price
+            source = "static_fallback"
+        notice = guard.decide(price_usd, endpoint, source)
+        if notice is not None:
+            raise AisaApprovalRequired(notice)
+        self.call_quotes.append(
+            {"endpoint": endpoint, "estimated_cost_usd": round(price_usd, 6),
+             "source": source}
+        )
+
+    def cost_disclosure(self) -> Optional[Dict[str, Any]]:
+        """Per-call quoted costs for this invocation, for honest output."""
+        if not self.call_quotes:
+            return None
+        return {
+            "quoted_calls": list(self.call_quotes),
+            "quoted_total_usd": round(
+                sum(q["estimated_cost_usd"] for q in self.call_quotes), 6
+            ),
+            "note": "Upstream price quotes at call time; failed calls are not charged.",
+        }
 
     # ------------------------------------------------------------------ core
 
@@ -140,7 +224,14 @@ class AisaClient:
 
         If the gateway rejects the request shape and the endpoint has a known
         required-params set, retry with required params only and annotate the
-        result with '_contract_fallback' so callers can disclose the drift."""
+        result with '_contract_fallback' so callers can disclose the drift.
+
+        Quote-first: when a cost guard is attached, the request is price-
+        quoted upstream (free) BEFORE execution; a price at or above the
+        user's threshold raises AisaApprovalRequired instead of executing.
+        Account-plane calls (base_url override) are always free — not quoted."""
+        if base_url is None and self.cost_guard is not None:
+            self._enforce_cost_guard(method, endpoint, params, data)
         try:
             return self._request_once(
                 method, endpoint, params, data, timeout, retries,
@@ -187,6 +278,7 @@ class AisaClient:
         retries: int = 1,
         retry_delay_seconds: int = 3,
         base_url: Optional[str] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a request and return the parsed, error-checked JSON body."""
         url = f"{base_url or self.BASE_URL}{endpoint}"
@@ -218,6 +310,8 @@ class AisaClient:
         # reject that as "request does not match the endpoint contract".
         if request_data is not None:
             headers["Content-Type"] = "application/json"
+        if extra_headers:
+            headers.update(extra_headers)
 
         req = urllib.request.Request(url, data=request_data, headers=headers, method=method)
 

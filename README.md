@@ -1,7 +1,7 @@
 # AIsa Go-to-Market
 
 **Author:** aisa-team
-**Version:** 0.1.3
+**Version:** 0.1.4
 **Type:** tool
 
 Premium go-to-market data for your Dify agents — competitor traffic intelligence, keyword research, social listening, B2B prospecting, creator discovery, and AI answer-engine visibility — all through **one AIsa API key**.
@@ -45,8 +45,9 @@ The plugin makes outbound HTTPS (port 443) requests to **`api.aisa.one` only** �
 
 ## Usage notes
 
-- **Billing** is usage-based per call through your AIsa account — traffic snapshots/trends are free, most search and social calls cost ~$0.01, Similarweb dated metrics are $0.10, and the most expensive calls are Semrush keyword difficulty ($0.45, up to 20 keywords per call) and organic competitors ($0.36). Failed calls are not charged. When credit runs out, tools return a clear error with a top-up link instead of silently failing.
-- **Traffic data lag**: Similarweb monthly metrics trail the current date by about two months. Leave the date parameters empty and the tool picks a valid recent window automatically.
+- **Quote-first billing**: before executing ANY call, the plugin fetches a free upstream price quote for that exact request (AIsa's `X-AISA-Cost-Mode: quote` header — nothing runs, nothing is charged). Calls quoted at or above your approval threshold (default $0.30, configurable per call) return a structured approval request instead of executing; retry with `approved=true` after the user consents. Successful responses include the quoted cost. Failed calls are not charged. When credit runs out, tools return a clear error with a top-up link instead of silently failing.
+- **Price ballparks** (live-quoted per request, so always current; audited 2026-09): social and DataForSEO calls ~$0, Tavily ~$0.03, Apollo ~$0.01, Semrush keyword difficulty ~$0.01 per keyword, Similarweb dated metrics ~$0.11, traffic snapshot/trend ~$0.52.
+- **Traffic data lag**: Similarweb monthly metrics trail the current date by about two months. Leave the date parameters empty and the tool picks a valid recent window automatically (a stale window self-heals by advancing one month and retrying).
 - **Separators**: keyword difficulty accepts up to 20 keywords separated by `;` — search volume accepts up to 100 separated by `,`.
 - **Country targeting**: pass two-letter codes or full names ("de", "Germany") — 30+ markets are mapped for localized keyword data.
 - **TikTok** content search is not currently available upstream; TikTok *creators* are still discoverable through Find Creators.

@@ -4,7 +4,10 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard
 
 _PLATFORMS = ("youtube", "tiktok")
 
@@ -37,6 +40,8 @@ class FindCreatorsTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("find_creators", mode, tool_parameters))
             if mode == "similar":
                 body: dict[str, Any] = {
                     "platform": platform,
@@ -50,12 +55,20 @@ class FindCreatorsTool(Tool):
                 result = client.request(
                     "POST", "/waveinflu/email-lookup", data={"url": profile_url}
                 )
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return
 
         result = truncate_payload(result)
-        yield self.create_json_message({"mode": mode, "profile_url": profile_url, "result": result})
+        payload: dict[str, Any] = {"mode": mode, "profile_url": profile_url, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(
             generic_summary(f"Creator discovery — {mode} for {profile_url}:", result, max_items=10)
         )

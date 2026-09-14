@@ -1,23 +1,35 @@
 """Contract-drift audit against AIsa's live tool contracts.
 
-Compares the contracts served by the AIsa Tool Router (tools.aisa.one/mcp,
-unauthenticated discovery) against:
+Two independent drift surfaces are audited weekly:
 
-  1. tests/contracts_baseline.json — the contracts this plugin version was
-     built and audited against. ANY change (schema or description prose —
-     window rules and conditional requirements live in prose!) is reported.
-  2. The parameters this plugin actually sends per tool (SENT below) — sent
-     params must exist in the schema, and required params must all be sent.
+1. SCHEMAS — via the AIsa Tool Router (tools.aisa.one/mcp). The router's
+   meta-surface was redesigned upstream in Sept 2026: AISA_GET_DETAILS was
+   retired in favor of AISA_BATCH_GET_SCHEMA, and per-tool description/price
+   fields were dropped from the payload (schema + known_pitfalls remain).
+   Compared against:
+     a. tests/contracts_baseline.json — the contracts this plugin version was
+        built and audited against (hashes over arguments_schema + pitfalls).
+     b. The parameters this plugin actually sends per tool (SENT below) —
+        sent params must exist in the schema, and required params must all
+        be sent. Property names are compared VERBATIM (Apollo schemas use
+        'person_titles[]'-style names — do not strip the brackets).
+
+2. PRICES — via the REST gateway's free quote plane (X-AISA-Cost-Mode:
+   quote), which the plugin's runtime approval gate depends on. The canary
+   fails hard if the quote plane stops answering, and if a live quote
+   EXCEEDS the static fallback price (the gate would under-ask whenever
+   quotes are down). Verified 2026-09-14: quotes match actual billing.
 
 Exit code 0 = no drift; 1 = drift detected (review, adapt the plugin if
 needed, then regenerate the baseline); 2 = audit could not run.
 
-Run:  python3 tests/contract_audit.py
-CI:   .github/workflows/contract-audit.yml (weekly)
+Run:      python3 tests/contract_audit.py            (needs AISA_API_KEY)
+Rebase:   python3 tests/contract_audit.py --record   (rewrites the baseline)
+CI:       .github/workflows/contract-audit.yml (weekly)
 
-Known accepted deviation (2026-09): the deployed gateway rejects
-'database' on semrush keyword-overview although the contract documents it;
-the plugin deliberately omits it there (SENT reflects that).
+Known accepted deviation (2026-09): the deployed REST gateway rejects
+'database' on semrush keyword-overview although the router schema documents
+it (retested live 2026-09-14); the plugin deliberately omits it there.
 """
 
 import hashlib
@@ -29,6 +41,7 @@ import urllib.request
 
 MCP = "https://tools.aisa.one/mcp"
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 
 # Params the plugin sends, keyed by the router's tool names.
 SENT = {
@@ -74,37 +87,136 @@ SENT = {
     "post_oxylabs_ai_search": {"source", "prompt", "query", "parse", "geo_location", "render", "search"},
 }
 
+# Quote-plane canaries: (fallback key, method, REST path, params, body).
+# Quotes are free (X-AISA-Cost-Mode: quote) — nothing executes, nothing bills.
+QUOTE_CANARIES = [
+    (("traffic_intel", "overview"), "GET", "/similarweb/website-traffic-snapshot",
+     {"domain": "example.com", "country": "us"}, None),
+    (("keyword_seo", "keyword_difficulty"), "GET", "/semrush/keyword-difficulty",
+     {"phrase": "seo tools", "database": "us"}, None),
+    (("web_research", "search"), "POST", "/tavily/search",
+     None, {"query": "contract audit canary"}),
+]
+
 
 def call_tool(name, args, rid):
+    """One MCP tools/call round-trip; surfaces JSON-RPC error envelopes."""
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
     }
     key = os.environ.get("AISA_API_KEY", "").strip()
-    if key:  # discovery may require auth; AISA_GET_DETAILS is read-only & free
+    if key:  # discovery requires auth; the schema calls are read-only & free
         headers["Authorization"] = f"Bearer {key}"
     body = json.dumps({"jsonrpc": "2.0", "id": rid, "method": "tools/call",
                        "params": {"name": name, "arguments": args}}).encode()
     req = urllib.request.Request(MCP, data=body, headers=headers)
     raw = urllib.request.urlopen(req, timeout=90).read().decode()
     m = re.findall(r"data: (\{.*\})", raw)
-    return json.loads(json.loads(m[-1] if m else raw)["result"]["content"][0]["text"])
+    payload = json.loads(m[-1] if m else raw)
+    if "error" in payload:
+        err = payload["error"]
+        raise RuntimeError(
+            f"router error {err.get('code')}: {err.get('message')}"
+        )
+    return json.loads(payload["result"]["content"][0]["text"])
+
+
+def fetch_live(names):
+    live = {}
+    for i in range(0, len(names), 20):
+        d = call_tool("AISA_BATCH_GET_SCHEMA", {"tools": names[i:i + 20]}, 100 + i)
+        live.update(d.get("tools", {}))
+    return live
+
+
+def entry_hashes(contract):
+    schema = contract.get("arguments_schema") or {}
+    pitfalls = contract.get("known_pitfalls")
+    pit_text = json.dumps(pitfalls, sort_keys=True) if pitfalls else ""
+    return (
+        hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest(),
+        hashlib.sha256(pit_text.encode()).hexdigest(),
+    )
+
+
+def record(names):
+    live = fetch_live(names)
+    baseline = {}
+    for name in sorted(names):
+        c = live.get(name)
+        if not c or not c.get("successful"):
+            print(f"CANNOT RECORD: {name} missing/unavailable in live catalog")
+            return 2
+        schema = c.get("arguments_schema") or {}
+        s_hash, p_hash = entry_hashes(c)
+        baseline[name] = {
+            "schema_sha256": s_hash,
+            "pitfalls_sha256": p_hash,
+            "properties": sorted((schema.get("properties") or {}).keys()),
+            "required": sorted(schema.get("required") or []),
+        }
+    path = os.path.join(HERE, "contracts_baseline.json")
+    with open(path, "w") as f:
+        json.dump(baseline, f, indent=1, sort_keys=True)
+        f.write("\n")
+    print(f"Recorded {len(baseline)} contracts to {path}")
+    return 0
+
+
+def audit_quotes():
+    """Verify the REST quote plane the runtime price gate depends on."""
+    sys.path.insert(0, ROOT)
+    from utils.aisa_client import AisaApiError, AisaClient
+    from utils.gtm_common import FALLBACK_PRICES
+
+    key = os.environ.get("AISA_API_KEY", "").strip()
+    if not key:
+        return ["quote canary: AISA_API_KEY not set — quote plane UNVERIFIED"], []
+
+    hard, info = [], []
+    client = AisaClient(key)
+    for fb_key, method, path, params, body in QUOTE_CANARIES:
+        fallback = FALLBACK_PRICES[fb_key]
+        try:
+            est = client.quote(method, path, params=params, data=body)
+            quoted = float(est.get("estimated_cost_micros_usd") or 0) / 1_000_000
+        except AisaApiError as e:
+            hard.append(
+                f"quote plane DOWN for {path}: [{e.code}] {e.message} — "
+                "the runtime approval gate depends on X-AISA-Cost-Mode: quote"
+            )
+            continue
+        if quoted > fallback:
+            hard.append(
+                f"{path}: live quote ${quoted:.4f} EXCEEDS static fallback "
+                f"${fallback:.2f} ({fb_key}) — raise FALLBACK_PRICES or the "
+                "gate under-asks whenever quotes are unavailable"
+            )
+        else:
+            info.append(f"{path}: quote ${quoted:.4f} <= fallback ${fallback:.2f} ok")
+    return hard, info
 
 
 def main():
     baseline = json.load(open(os.path.join(HERE, "contracts_baseline.json")))
     names = sorted(baseline.keys())
 
-    live = {}
+    if "--record" in sys.argv:
+        return record(names)
+
     try:
-        for i in range(0, len(names), 20):
-            d = call_tool("AISA_GET_DETAILS", {"tools": names[i:i + 20]}, 100 + i)
-            live.update(d["tools"])
+        live = fetch_live(names)
     except Exception as e:
+        msg = str(e)
         hint = ""
-        if "401" in str(e):
+        if "401" in msg:
             hint = " (discovery requires auth — set AISA_API_KEY; the audit calls are read-only and free)"
-        print(f"AUDIT COULD NOT RUN: {e}{hint}")
+        elif "unknown tool" in msg.lower():
+            hint = (" — the router META-SURFACE changed again (as when "
+                    "AISA_GET_DETAILS became AISA_BATCH_GET_SCHEMA); list the "
+                    "router's tools and port fetch_live() to the new meta-tool")
+        print(f"AUDIT COULD NOT RUN: {msg}{hint}")
         return 2
 
     drift, hard_fail = [], []
@@ -113,19 +225,18 @@ def main():
         if not c or not c.get("successful"):
             hard_fail.append(f"{name}: MISSING/unavailable in live catalog")
             continue
-        schema = c.get("arguments_schema", {})
-        props = set(schema.get("properties", {}).keys())
-        required = set(schema.get("required", []))
+        schema = c.get("arguments_schema") or {}
+        props = set((schema.get("properties") or {}).keys())
+        required = set(schema.get("required") or [])
         base = baseline[name]
 
-        args_hash = hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-        desc_hash = hashlib.sha256((c.get("description") or "").encode()).hexdigest()
-        if args_hash != base["args_schema_sha256"]:
+        s_hash, p_hash = entry_hashes(c)
+        if s_hash != base["schema_sha256"]:
             drift.append(f"{name}: arguments_schema CHANGED "
                          f"(props now {sorted(props)}, required {sorted(required)}; "
                          f"baseline props {base['properties']}, required {base['required']})")
-        elif desc_hash != base["description_sha256"]:
-            drift.append(f"{name}: description prose changed — REVIEW for new "
+        elif p_hash != base["pitfalls_sha256"]:
+            drift.append(f"{name}: known_pitfalls prose changed — REVIEW for new "
                          f"window rules / conditional requirements")
 
         sent = SENT.get(name, set())
@@ -136,15 +247,22 @@ def main():
         if missing and name != "get_semrush_keyword_overview":
             hard_fail.append(f"{name}: plugin misses required params: {sorted(missing)}")
 
+    quote_hard, quote_info = audit_quotes()
+    hard_fail.extend(quote_hard)
+
     for line in hard_fail:
         print("FAIL ", line)
     for line in drift:
         print("DRIFT", line)
+    for line in quote_info:
+        print("info ", line)
     if not hard_fail and not drift:
-        print(f"OK — {len(names)} contracts match the baseline and the plugin's calls")
+        print(f"OK — {len(names)} contracts match the baseline and the plugin's "
+              "calls; quote plane serving")
         return 0
     print(f"\n{len(hard_fail)} failure(s), {len(drift)} drift notice(s). "
-          "Review, adapt tools/ if needed, then regenerate contracts_baseline.json.")
+          "Review, adapt tools/ if needed, then regenerate the baseline with "
+          "--record.")
     return 1
 
 

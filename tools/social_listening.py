@@ -4,7 +4,10 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard
 
 _PLATFORMS = ("x", "reddit", "instagram", "pinterest", "youtube")
 _PROFILE_PLATFORMS = ("x", "instagram")
@@ -48,6 +51,8 @@ class SocialListeningTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("social_listening", platform, tool_parameters))
             if platform == "x":
                 if mode == "profile":
                     result = client.request(
@@ -87,15 +92,23 @@ class SocialListeningTool(Tool):
                 result = client.request(
                     "GET", "/youtube/search", params={"engine": "youtube", "q": query}
                 )
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return
 
         result = truncate_payload(result, max_field_chars=3000)
         subject = handle if mode == "profile" else query
-        yield self.create_json_message(
-            {"platform": platform, "mode": mode, "subject": subject, "result": result}
-        )
+        payload: dict[str, Any] = {
+            "platform": platform, "mode": mode, "subject": subject, "result": result,
+        }
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(
             generic_summary(f"Social listening — {platform} {mode} for '{subject}':", result)
         )

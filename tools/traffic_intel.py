@@ -4,15 +4,17 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
-from utils.gtm_common import approval_notice, default_month_range, shift_month_str, today_str
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard, default_month_range, shift_month_str, today_str
 
 
 def _latest_published_month(snapshot: Any) -> str:
     """Extract the latest published month from a traffic-snapshot response.
 
-    The snapshot endpoint is free and auto-selects the most recent available
-    month, echoing it in meta.end_date / data.month ('YYYY-MM')."""
+    The snapshot endpoint auto-selects the most recent available month,
+    echoing it in meta.end_date / data.month ('YYYY-MM')."""
     if isinstance(snapshot, dict):
         meta = snapshot.get("meta") or {}
         data = snapshot.get("data") or {}
@@ -28,22 +30,26 @@ def _resolve_window(client, domain, sw_country, tool_parameters, span: int):
     Per-endpoint upstream rules: demographics/technologies accept EXACTLY one
     monthly bucket; similar_sites exactly three anchored to the latest
     published window. User-supplied dates are always respected verbatim.
-    Otherwise anchor to the latest published month via the free snapshot
-    probe; fall back to the lagged default window."""
+
+    The snapshot anchor probe is NO LONGER free upstream (repriced from $0 to
+    ~$0.52, verified 2026-09-14), so it only runs on pre-approved calls; the
+    default path uses the free lagged window, and _dated_request self-heals a
+    stale window by advancing one month."""
     user_s = str(tool_parameters.get("start_date") or "").strip()
     user_e = str(tool_parameters.get("end_date") or "").strip()
     if user_s and user_e:
         return user_s, user_e
-    try:
-        probe = client.request(
-            "GET", "/similarweb/website-traffic-snapshot",
-            params={"domain": domain, "country": sw_country},
-        )
-        latest = _latest_published_month(probe)
-        if latest:
-            return shift_month_str(latest, -(span - 1)), latest
-    except AisaApiError:
-        pass
+    if tool_parameters.get("approved"):
+        try:
+            probe = client.request(
+                "GET", "/similarweb/website-traffic-snapshot",
+                params={"domain": domain, "country": sw_country},
+            )
+            latest = _latest_published_month(probe)
+            if latest:
+                return shift_month_str(latest, -(span - 1)), latest
+        except AisaApiError:
+            pass
     _, end = default_month_range()
     return shift_month_str(end, -(span - 1)), end
 
@@ -105,13 +111,6 @@ class TrafficIntelTool(Tool):
             )
             return
 
-        # Cost gate — refuses BEFORE any API call, so this response is free.
-        notice = approval_notice("traffic_intel", metric, tool_parameters)
-        if notice:
-            yield self.create_json_message(notice)
-            yield self.create_text_message(notice["message"])
-            return
-
         start_date = str(tool_parameters.get("start_date") or "").strip()
         end_date = str(tool_parameters.get("end_date") or "").strip()
         if not start_date or not end_date:
@@ -122,6 +121,10 @@ class TrafficIntelTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate: every call below is price-quoted upstream
+            # (free) and refused with an approval request when it meets the
+            # user's threshold — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("traffic_intel", metric, tool_parameters))
             if metric == "overview":
                 result = client.request(
                     "GET", "/similarweb/website-traffic-snapshot",
@@ -206,12 +209,20 @@ class TrafficIntelTool(Tool):
                     params={"target": domain, "date": snapshot_date},
                 )
                 result = {"domain_rating": rating, "site_metrics": site_metrics}
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return
 
         result = truncate_payload(result)
-        yield self.create_json_message({"metric": metric, "domain": domain, "result": result})
+        payload: dict[str, Any] = {"metric": metric, "domain": domain, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(
             generic_summary(f"Traffic intel — {metric} for {domain}:", result)
         )

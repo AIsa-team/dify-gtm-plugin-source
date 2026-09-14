@@ -4,8 +4,10 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
-from utils.gtm_common import approval_notice, dfs_location_name, semrush_database
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard, dfs_location_name, semrush_database
 
 _KEYWORD_METRICS = ("keyword_overview", "keyword_difficulty", "keyword_suggestions", "search_volume")
 _DOMAIN_METRICS = ("domain_keywords", "domain_competitors", "backlinks_overview")
@@ -36,18 +38,15 @@ class KeywordSeoTool(Tool):
             yield self._error(f"Metric '{metric}' requires the 'domain' parameter.")
             return
 
-        # Cost gate — refuses BEFORE any API call, so this response is free.
-        notice = approval_notice("keyword_seo", metric, tool_parameters)
-        if notice:
-            yield self.create_json_message(notice)
-            yield self.create_text_message(notice["message"])
-            return
-
         database = semrush_database(country)
         location = dfs_location_name(country)
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate: every call below is price-quoted upstream
+            # (free) and refused with an approval request when it meets the
+            # user's threshold — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("keyword_seo", metric, tool_parameters))
             if metric == "keyword_overview":
                 # Gateway drift (verified live 2026-09): this endpoint rejects
                 # the documented 'database' param outright ("request does not
@@ -98,6 +97,10 @@ class KeywordSeoTool(Tool):
                     "GET", "/semrush/backlinks-overview",
                     params={"target": domain},
                 )
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message({"error": {"code": e.code, "message": e.message}})
             return
@@ -105,6 +108,9 @@ class KeywordSeoTool(Tool):
         result = truncate_payload(result)
         subject = keyword if metric in _KEYWORD_METRICS else domain
         payload: dict[str, Any] = {"metric": metric, "subject": subject, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
         summary = generic_summary(f"Keyword/SEO — {metric} for '{subject}':", result)
         if metric == "keyword_overview" and database != "us":
             notice = ("Note: keyword_overview currently serves the US database only "

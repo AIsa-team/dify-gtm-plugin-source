@@ -94,6 +94,36 @@ parameters:
       zh_Hans: "可选：将 Reddit 搜索限定在某个 subreddit（如 'SaaS'）。"
     llm_description: "Optional subreddit name without 'r/' to scope a Reddit search, e.g. 'startups'. Reddit only."
     form: llm
+  - name: approval_threshold
+    type: number
+    required: false
+    label:
+      en_US: "Approval threshold (USD)"
+      zh_Hans: "审批阈值（美元）"
+      pt_BR: "Limite de aprovação (USD)"
+      ja_JP: "承認しきい値（米ドル）"
+    human_description:
+      en_US: "Calls quoted at or above this amount require approved=true (default 0.30)."
+      zh_Hans: "报价达到该金额的调用需要 approved=true（默认 0.30）。"
+      pt_BR: "Chamadas cotadas neste valor ou acima exigem approved=true (padrão 0.30)."
+      ja_JP: "見積もりがこの金額以上の呼び出しには approved=true が必要（デフォルト 0.30）。"
+    llm_description: "Price gate in USD: every call is price-quoted upstream first (free), and quotes at or above this amount are refused until approved=true. Pass the user's configured threshold verbatim on every call; omit for the default (0.30)."
+    form: llm
+  - name: approved
+    type: boolean
+    required: false
+    label:
+      en_US: "Cost approved"
+      zh_Hans: "已批准费用"
+      pt_BR: "Custo aprovado"
+      ja_JP: "費用承認済み"
+    human_description:
+      en_US: "Required for calls quoted at or above the approval threshold. Without it, the tool returns an approval request instead of running."
+      zh_Hans: "报价达到审批阈值的调用必需。未设置时工具返回审批请求而不执行。"
+      pt_BR: "Obrigatório para chamadas cotadas no limite de aprovação ou acima. Sem ele, a ferramenta retorna um pedido de aprovação em vez de executar."
+      ja_JP: "見積もりが承認しきい値以上の呼び出しに必須。未設定の場合、ツールは実行せず承認リクエストを返します。"
+    llm_description: "Cost-approval flag for calls quoted at or above the approval threshold. Set true ONLY after the user explicitly approved the cost (in conversation or via an approval form). Never set it on your own initiative."
+    form: llm
 extra:
   python:
     source: tools/social_listening.py

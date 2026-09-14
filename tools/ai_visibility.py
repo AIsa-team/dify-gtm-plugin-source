@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from utils.aisa_client import AisaApiError, AisaClient, generic_summary, truncate_payload
-from utils.gtm_common import normalize_country
+from utils.aisa_client import (
+    AisaApiError, AisaApprovalRequired, AisaClient, generic_summary, truncate_payload,
+)
+from utils.gtm_common import CostGuard, normalize_country
 
 # Multi-backend answer-engine routing (verified live 2026-09):
 # - LLM engines (chatgpt/gemini/perplexity/claude) -> DataForSEO
@@ -98,10 +100,16 @@ class AiVisibilityTool(Tool):
 
         try:
             client = AisaClient(self.runtime.credentials.get("aisa_api_key", ""))
+            # Quote-first cost gate — see AisaClient._enforce_cost_guard.
+            client.set_cost_guard(CostGuard.from_params("ai_visibility", source, tool_parameters))
             if source in _DFS_ENGINES:
                 result = self._invoke_llm_engine(client, source, prompt, model, geo_location)
             else:
                 result = self._invoke_google(client, source, prompt, geo_location)
+        except AisaApprovalRequired as e:
+            yield self.create_json_message(e.notice)
+            yield self.create_text_message(e.notice["message"])
+            return
         except AisaApiError as e:
             yield self.create_json_message(
                 {"error": {"code": e.code,
@@ -110,7 +118,11 @@ class AiVisibilityTool(Tool):
             return
 
         result = truncate_payload(result)
-        yield self.create_json_message({"source": source, "prompt": prompt, "result": result})
+        payload: Dict[str, Any] = {"source": source, "prompt": prompt, "result": result}
+        cost = client.cost_disclosure()
+        if cost:
+            payload["cost"] = cost
+        yield self.create_json_message(payload)
         yield self.create_text_message(
             generic_summary(f"AI visibility — how {source} answers '{prompt[:80]}':", result)
         )
@@ -126,6 +138,8 @@ class AiVisibilityTool(Tool):
                 timeout=110, retries=0,
             )
             return _dfs_result(resp)
+        except AisaApprovalRequired:
+            raise  # cost gate, not an upstream failure — no fallback
         except AisaApiError as e:
             if "model" not in e.message.lower():
                 raise
@@ -153,6 +167,8 @@ class AiVisibilityTool(Tool):
         try:
             return client.request("POST", "/oxylabs/ai-search", data=body,
                                   timeout=110, retries=0)
+        except AisaApprovalRequired:
+            raise  # cost gate, not an upstream failure — no fallback
         except AisaApiError as e:
             fallback_ok = source == "google_ai_mode" and (
                 "Push-Pull" in e.message or "Realtime" in e.message or e.code in ("422",)
