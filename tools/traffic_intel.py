@@ -213,11 +213,14 @@ class TrafficIntelTool(Tool):
                 )
             elif metric == "landing_pages":
                 # Where search traffic actually lands on this domain.
-                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=3)
+                # Upstream rule (error 120, verified live 2026-09-15): unlike
+                # keyword-competitors, this endpoint accepts AT MOST a one-
+                # month interval — single-month window, like demographics.
+                s, e = _resolve_window(client, domain, sw_country, tool_parameters, span=1)
                 result = _dated_request(
                     client, "/similarweb/search/landing-pages",
                     {"domain": domain, "limit": 20, "country": sw_country},
-                    s, e, span=3,
+                    s, e, span=1,
                 )
             else:  # domain_authority — Ahrefs, two snapshot calls merged
                 snapshot_date = today_str()
